@@ -88,18 +88,18 @@ export default function ExploreScreen() {
               Suggested Creators
             </Text>
           </View>
-          <Text
+          {/* <Text
             style={{ color: colors.text3 }}
             className="text-xs font-semibold"
           >
             {SUGGESTED_USERS.length} Discover
-          </Text>
+          </Text> */}
         </View>
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingVertical: 10 }}
         >
           {SUGGESTED_USERS.map((user) => {
             const isFollowing = followedIds.includes(user.id);
@@ -111,7 +111,7 @@ export default function ExploreScreen() {
                   borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
                   width: 148,
                 }}
-                className="p-3.5 rounded-2xl border items-center shadow-sm"
+                className="p-3.5 rounded-2xl border items-center shadow-xs"
               >
                 <Avatar
                   src={user.avatar}

@@ -72,7 +72,7 @@ export function Input({
           },
           wrapperStyle,
         ]}
-        className={`flex-row items-center px-3.5 bg-surface rounded-xl ${wrapperClassName}`}
+        className={`flex-row items-center px-3.5 bg-surface rounded-lg ${wrapperClassName}`}
       >
         {leftIcon ? (
           <View className="mr-2.5 items-center justify-center pointer-events-none">

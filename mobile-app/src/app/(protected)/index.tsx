@@ -73,93 +73,8 @@ export default function FeedScreen() {
   }, [posts, activeTab, searchQuery, currentUser]);
 
   const renderHeader = () => (
-    <View className="pt-2">
-      {/* 1. For You / Following Segmented Tabs */}
-      <View className="px-4 mb-3">
-        <View
-          style={{
-            backgroundColor: isDark ? "#0D0E17" : "#F1F5F9",
-            borderColor: isDark ? "rgba(255, 255, 255, 0.05)" : colors.border,
-          }}
-          className="flex-row p-1 rounded-2xl border"
-        >
-          {/* For You Tab */}
-          <TouchableOpacity
-            onPress={() => setActiveTab("forYou")}
-            activeOpacity={0.8}
-            style={{
-              backgroundColor:
-                activeTab === "forYou"
-                  ? isDark
-                    ? "#1E1B4B"
-                    : "#E0E7FF"
-                  : "transparent",
-              borderColor:
-                activeTab === "forYou"
-                  ? isDark
-                    ? "#6366F1"
-                    : "#4F46E5"
-                  : "transparent",
-              borderWidth: activeTab === "forYou" ? 1 : 0,
-            }}
-            className="flex-1 py-2.5 rounded-xl items-center justify-center"
-          >
-            <Text
-              style={{
-                color:
-                  activeTab === "forYou"
-                    ? isDark
-                      ? "#C7D2FE"
-                      : "#4338CA"
-                    : colors.text3,
-                fontWeight: activeTab === "forYou" ? "700" : "600",
-                fontSize: 14,
-              }}
-            >
-              For You
-            </Text>
-          </TouchableOpacity>
-
-          {/* Following Tab */}
-          <TouchableOpacity
-            onPress={() => setActiveTab("following")}
-            activeOpacity={0.8}
-            style={{
-              backgroundColor:
-                activeTab === "following"
-                  ? isDark
-                    ? "#1E1B4B"
-                    : "#E0E7FF"
-                  : "transparent",
-              borderColor:
-                activeTab === "following"
-                  ? isDark
-                    ? "#6366F1"
-                    : "#4F46E5"
-                  : "transparent",
-              borderWidth: activeTab === "following" ? 1 : 0,
-            }}
-            className="flex-1 py-2.5 rounded-xl items-center justify-center"
-          >
-            <Text
-              style={{
-                color:
-                  activeTab === "following"
-                    ? isDark
-                      ? "#C7D2FE"
-                      : "#4338CA"
-                    : colors.text3,
-                fontWeight: activeTab === "following" ? "700" : "600",
-                fontSize: 14,
-              }}
-            >
-              Following
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* 2. Reusable Search Input */}
+    <View className="pt-1">
+      {/* 1. Search Bar right after Header */}
       <Input
         value={searchQuery}
         onChangeText={setSearchQuery}
@@ -168,8 +83,77 @@ export default function FeedScreen() {
         clearable
         onClear={() => setSearchQuery("")}
         inputHeight={44}
-        containerClassName="px-4 mb-3"
+        containerClassName="px-4 pt-2 mb-2"
       />
+
+      {/* 2. Small Left-Aligned Text Format Tabs: For You / Following */}
+      <View className="px-5 mb-3 flex-row items-center gap-6">
+        {/* For you */}
+        <TouchableOpacity
+          onPress={() => setActiveTab("forYou")}
+          activeOpacity={0.7}
+          className="py-1 items-center"
+        >
+          <Text
+            style={{
+              color:
+                activeTab === "forYou"
+                  ? isDark
+                    ? "#FFFFFF"
+                    : colors.text
+                  : colors.text3,
+              fontSize: 13.5,
+              fontWeight: activeTab === "forYou" ? "800" : "500",
+            }}
+          >
+            For you
+          </Text>
+          {activeTab === "forYou" && (
+            <View
+              style={{
+                backgroundColor: colors.brand,
+                height: 2.5,
+                borderRadius: 2,
+                marginTop: 3,
+                width: "100%",
+              }}
+            />
+          )}
+        </TouchableOpacity>
+
+        {/* Following */}
+        <TouchableOpacity
+          onPress={() => setActiveTab("following")}
+          activeOpacity={0.7}
+          className="py-1 items-center"
+        >
+          <Text
+            style={{
+              color:
+                activeTab === "following"
+                  ? isDark
+                    ? "#FFFFFF"
+                    : colors.text
+                  : colors.text3,
+              fontSize: 13.5,
+              fontWeight: activeTab === "following" ? "800" : "500",
+            }}
+          >
+            Following
+          </Text>
+          {activeTab === "following" && (
+            <View
+              style={{
+                backgroundColor: colors.brand,
+                height: 2.5,
+                borderRadius: 2,
+                marginTop: 3,
+                width: "100%",
+              }}
+            />
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
