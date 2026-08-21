@@ -42,8 +42,6 @@ async function uploadCachedPushToken(authToken: string): Promise<void> {
 
 export const useAuth = create<AuthState>((set, get) => ({
   // Default to demo user so the app is immediately usable.
-  // Push notifications will NOT work in demo mode — that's intentional.
-  // They only work after a real login/register (real DB user + token pair).
   user: CURRENT_USER,
   token: "demo_token_authenticated",
   isAuthenticated: true,

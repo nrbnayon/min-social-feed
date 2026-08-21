@@ -121,27 +121,39 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   log("Requesting notification permissions…");
   await setupAndroidChannels();
 
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
+  const { status: existingStatus, ios } = await Notifications.getPermissionsAsync();
   log(`Current permission status: ${existingStatus}`);
 
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== "granted") {
-    log("Permissions not yet granted — prompting user…");
-    const { status } = await Notifications.requestPermissionsAsync({
-      ios: {
-        allowAlert: true,
-        allowBadge: true,
-        allowSound: true,
-        allowProvisional: false,
-      },
-    });
-    finalStatus = status;
-    log(`Permission response status: ${finalStatus}`);
+  // Already fully granted — nothing to do
+  if (existingStatus === "granted") {
+    log("Permissions already granted ✅");
+    return true;
   }
 
-  if (finalStatus !== "granted") {
-    warn(`Notification permissions denied (status: ${finalStatus})`);
+  // iOS: use provisional authorization — notifications are delivered silently
+  // to the Notification Center WITHOUT showing a permission dialog.
+  // The user can promote them to full (banners + sound) later via Settings.
+  // This means push "just works" from the first app open with zero friction.
+  //
+  // Android 12 and below: push works by default, no permission needed.
+  // Android 13+: the OS will show the POST_NOTIFICATIONS system dialog
+  //              automatically on first launch — no code prompt needed.
+  log("Requesting permissions (provisional on iOS)…");
+  const { status } = await Notifications.requestPermissionsAsync({
+    ios: {
+      allowAlert: true,
+      allowBadge: true,
+      allowSound: true,
+      allowProvisional: true,   // ← silent delivery without dialog on iOS
+      allowCriticalAlerts: false,
+    },
+  });
+
+  log(`Permission response status: ${status}`);
+
+  // On iOS, "provisional" is returned as "granted" by expo-notifications
+  if (status !== "granted") {
+    warn(`Notification permissions not granted (status: ${status})`);
     return false;
   }
 
