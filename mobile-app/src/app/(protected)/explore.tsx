@@ -1,12 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
-  ScrollView,
   FlatList,
-  Pressable,
-  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,10 +14,17 @@ import { usePostsStore } from "@/hooks/usePosts";
 import { useToastStore } from "@/store/useToastStore";
 import { PostCard } from "@/components/feed/PostCard";
 import { Avatar } from "@/components/Shared/Avatar";
-import { TRENDING_TAGS, SUGGESTED_USERS } from "@/data/seed";
-import { Search, X, Flame, Sparkles } from "lucide-react-native";
-
-const CATEGORIES = ["All", "Tech", "Design", "Travel", "Startup", "AI", "Photography"];
+import { Input } from "@/components/ui/input";
+import { CommentSheet } from "@/components/comments/CommentSheet";
+import { ShareModal } from "@/components/feed/ShareModal";
+import { SUGGESTED_USERS } from "@/data/seed";
+import {
+  Search,
+  Users,
+  SearchX,
+  BadgeCheck,
+  TrendingUp,
+} from "lucide-react-native";
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
@@ -28,410 +33,260 @@ export default function ExploreScreen() {
   const showToast = useToastStore((s) => s.showToast);
 
   const [query, setQuery] = useState("");
-  const [selectedCat, setSelectedCat] = useState("All");
   const [followedIds, setFollowedIds] = useState<string[]>([]);
+
+  // Modals state
+  const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [sharePost, setSharePost] = useState<Post | null>(null);
 
   const handleFollowToggle = (user: User) => {
     const isNowFollowing = !followedIds.includes(user.id);
     setFollowedIds((prev) =>
       isNowFollowing ? [...prev, user.id] : prev.filter((id) => id !== user.id)
     );
-    if (isNowFollowing) {
-      showToast(`Following ${user.name}`, "✓");
-    }
+    showToast(
+      isNowFollowing ? `Following ${user.name} 🎉` : `Unfollowed ${user.name}`,
+      isNowFollowing ? "✓" : "👋"
+    );
   };
 
-  const filteredPosts = posts.filter((p) => {
-    const q = query.toLowerCase().trim();
-    const matchesQuery =
-      !q ||
-      p.content.toLowerCase().includes(q) ||
-      p.name.toLowerCase().includes(q) ||
-      p.username.toLowerCase().includes(q) ||
-      (p.tags || []).some((t) => t.toLowerCase().includes(q));
+  const filteredPosts = useMemo(() => {
+    const q = query.toLowerCase().trim().replace(/^@/, "");
+    if (!q) return posts;
 
-    const matchesCat =
-      selectedCat === "All" ||
-      (p.tags || []).some((t) => t.toLowerCase().includes(selectedCat.toLowerCase())) ||
-      p.content.toLowerCase().includes(selectedCat.toLowerCase());
-
-    return matchesQuery && matchesCat;
-  });
+    return posts.filter((p) => {
+      const content = (p.content || "").toLowerCase();
+      const name = (p.name || "").toLowerCase();
+      const username = (p.username || "").toLowerCase().replace(/^@/, "");
+      return content.includes(q) || name.includes(q) || username.includes(q);
+    });
+  }, [posts, query]);
 
   const renderHeader = () => (
-    <View style={styles.headerArea}>
-      {/* 1. Title & Search Input */}
-      <View
-        style={[
-          styles.topBar,
-          {
-            paddingTop: insets.top + (Platform.OS === "ios" ? 4 : 10),
-            backgroundColor: isDark ? "rgba(9, 10, 18, 0.92)" : "rgba(248, 250, 252, 0.92)",
-            borderBottomColor: colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.screenTitle, { color: colors.text }]}>
-          Explore
-        </Text>
+    <View className="pt-2">
+      {/* 1. Reusable Search Input */}
+      <Input
+        value={query}
+        onChangeText={setQuery}
+        placeholder="Search creators, handles, or posts..."
+        leftIcon={<Search size={18} color={colors.text3} />}
+        clearable
+        onClear={() => setQuery("")}
+        inputHeight={46}
+        containerClassName="px-4 mb-4"
+      />
 
-        <View
-          style={[
-            styles.searchBar,
-            {
-              backgroundColor: colors.surface2,
-              borderColor: colors.borderStrong,
-            },
-          ]}
-        >
-          <Search size={17} color={colors.text3} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search posts, tags, or creators..."
-            placeholderTextColor={colors.text3}
-            style={[styles.searchInput, { color: colors.text }]}
-          />
-          {query.length > 0 && (
-            <Pressable onPress={() => setQuery("")} style={styles.clearBtn}>
-              <X size={14} color={colors.text2} />
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      {/* 2. Category Chips */}
-      {!query && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryScroll}
-          style={[styles.categoryContainer, { borderBottomColor: colors.border }]}
-        >
-          {CATEGORIES.map((cat) => {
-            const isActive = selectedCat === cat;
-            return (
-              <Pressable
-                key={cat}
-                onPress={() => setSelectedCat(cat)}
-                style={[
-                  styles.catChip,
-                  {
-                    backgroundColor: isActive
-                      ? isDark
-                        ? "rgba(99, 102, 241, 0.25)"
-                        : "rgba(99, 102, 241, 0.15)"
-                      : colors.surface2,
-                    borderColor: isActive ? colors.brand : colors.border,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.catChipText,
-                    {
-                      color: isActive ? colors.brand2 : colors.text2,
-                      fontWeight: isActive ? "700" : "500",
-                    },
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
-
-      {/* 3. Trending Topics */}
-      {!query && (
-        <View style={styles.trendingSection}>
-          <View style={styles.sectionTitleRow}>
-            <Flame size={18} color={colors.pink} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
-              Trending Topics
-            </Text>
-          </View>
-
-          <View style={styles.trendingGrid}>
-            {TRENDING_TAGS.map((item, index) => (
-              <Pressable
-                key={index}
-                onPress={() => setQuery(item.tag)}
-                style={[
-                  styles.trendingCard,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.trendingTag, { color: colors.text }]}>
-                  #{item.tag}
-                </Text>
-                <Text style={[styles.trendingCount, { color: colors.text3 }]}>
-                  {item.posts} posts
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* 4. Suggested Creators */}
-      {!query && (
-        <View style={styles.creatorsSection}>
-          <View style={styles.sectionTitleRow}>
-            <Sparkles size={18} color={colors.brand2} />
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+      {/* 2. Suggested Creators Section */}
+      <View className="mb-5">
+        <View className="px-4 mb-3 flex-row items-center justify-between">
+          <View className="flex-row items-center gap-1.5">
+            <Users size={16} color={colors.brand2} />
+            <Text
+              style={{ color: colors.text }}
+              className="text-sm font-bold tracking-tight"
+            >
               Suggested Creators
             </Text>
           </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.creatorsScroll}
+          <Text
+            style={{ color: colors.text3 }}
+            className="text-xs font-semibold"
           >
-            {SUGGESTED_USERS.map((user) => {
-              const isFollowing = followedIds.includes(user.id);
-              return (
-                <View
-                  key={user.id}
-                  style={[
-                    styles.creatorCard,
-                    {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                    },
-                  ]}
-                >
-                  <Avatar
-                    src={user.avatar}
-                    size={52}
-                    name={user.name}
-                    verified={user.verified}
-                  />
-                  <Text style={[styles.creatorName, { color: colors.text }]} numberOfLines={1}>
+            {SUGGESTED_USERS.length} Discover
+          </Text>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+        >
+          {SUGGESTED_USERS.map((user) => {
+            const isFollowing = followedIds.includes(user.id);
+            return (
+              <View
+                key={user.id}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
+                  width: 148,
+                }}
+                className="p-3.5 rounded-2xl border items-center shadow-sm"
+              >
+                <Avatar
+                  src={user.avatar}
+                  size={50}
+                  gradientBorder={true}
+                  name={user.name}
+                />
+
+                <View className="flex-row items-center gap-1 mt-2 mb-0.5">
+                  <Text
+                    style={{ color: colors.text }}
+                    className="text-xs font-bold text-center"
+                    numberOfLines={1}
+                  >
                     {user.name}
                   </Text>
-                  <Text style={[styles.creatorUsername, { color: colors.text3 }]} numberOfLines={1}>
-                    @{user.username}
-                  </Text>
-
-                  <Pressable
-                    onPress={() => handleFollowToggle(user)}
-                    style={[
-                      styles.followBtn,
-                      {
-                        backgroundColor: isFollowing
-                          ? colors.surface2
-                          : colors.brand,
-                        borderColor: isFollowing
-                          ? colors.borderStrong
-                          : colors.brand,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.followBtnText,
-                        {
-                          color: isFollowing ? colors.text : "#FFFFFF",
-                        },
-                      ]}
-                    >
-                      {isFollowing ? "Following" : "Follow"}
-                    </Text>
-                  </Pressable>
+                  {user.verified && (
+                    <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
+                  )}
                 </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
 
-      {/* Discover Posts Section Heading */}
-      <View style={styles.discoverHeadingRow}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {query ? `Results for "${query}"` : "Discover Posts"}
-        </Text>
+                <Text
+                  style={{ color: colors.text3 }}
+                  className="text-[11px] text-center mb-3"
+                  numberOfLines={1}
+                >
+                  @{user.username}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => handleFollowToggle(user)}
+                  activeOpacity={0.8}
+                  style={{
+                    backgroundColor: isFollowing ? colors.surface2 : colors.brand,
+                    borderColor: isFollowing ? colors.border : colors.brand,
+                  }}
+                  className="w-full py-1.5 rounded-lg border items-center justify-center"
+                >
+                  <Text
+                    style={{
+                      color: isFollowing ? colors.text2 : "#FFFFFF",
+                      fontSize: 11.5,
+                      fontWeight: "700",
+                    }}
+                  >
+                    {isFollowing ? "Following" : "Follow"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* 3. Feed Header Section */}
+      <View className="px-4 mb-3 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-1.5">
+          <TrendingUp size={16} color={colors.brand2} />
+          <Text
+            style={{ color: colors.text }}
+            className="text-sm font-bold tracking-tight"
+          >
+            {query ? `Search Results (${filteredPosts.length})` : "Recent Community Posts"}
+          </Text>
+        </View>
       </View>
     </View>
   );
 
   return (
     <View
-      style={[
-        styles.screen,
-        { backgroundColor: isDark ? "#090A12" : "#F8FAFC" },
-      ]}
+      style={{
+        flex: 1,
+        backgroundColor: colors.background,
+      }}
     >
+      {/* 🌟 Top Header */}
+      <View
+        style={{
+          paddingTop: insets.top + (Platform.OS === "ios" ? 6 : 10),
+          paddingBottom: 10,
+          paddingHorizontal: 16,
+          backgroundColor: isDark ? "rgba(9, 10, 18, 0.95)" : "rgba(248, 250, 252, 0.95)",
+          borderBottomColor: colors.border,
+          borderBottomWidth: 1,
+        }}
+        className="flex-row items-center justify-between"
+      >
+        <Text
+          style={{ color: colors.text }}
+          className="text-xl font-black tracking-tight"
+        >
+          Explore
+        </Text>
+      </View>
+
+      {/* 📜 Feed List */}
       <FlatList
         data={filteredPosts}
-        keyExtractor={(item) => item.id || item._id || ""}
+        keyExtractor={(item) => item.id || item._id || String(Math.random())}
         ListHeaderComponent={renderHeader}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: insets.bottom + 80 },
-        ]}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            onCommentPress={(p) => setCommentPost(p)}
+            onSharePress={(p) => setSharePost(p)}
+          />
+        )}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + 80,
+        }}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <PostCard post={item} />}
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: colors.text3 }]}>
-              No posts found matching your search.
+          <View className="px-6 py-12 items-center">
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: colors.surface2,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 12,
+              }}
+            >
+              <SearchX size={26} color={colors.text3} />
+            </View>
+            <Text
+              style={{ color: colors.text }}
+              className="text-base font-bold text-center mb-1"
+            >
+              No posts found
             </Text>
+            <Text
+              style={{ color: colors.text3 }}
+              className="text-sm text-center mb-4"
+            >
+              No results found for "{query}". Try a different keyword or creator.
+            </Text>
+            {query.length > 0 && (
+              <TouchableOpacity
+                onPress={() => setQuery("")}
+                style={{
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                }}
+                className="px-4 py-2 rounded-lg border"
+              >
+                <Text
+                  style={{ color: colors.brand2 }}
+                  className="text-xs font-semibold"
+                >
+                  Clear Search
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         }
       />
+
+      {/* 💬 Comments Bottom Sheet Modal */}
+      {commentPost && (
+        <CommentSheet
+          post={commentPost}
+          onClose={() => setCommentPost(null)}
+        />
+      )}
+
+      {/* 🔗 Share Modal */}
+      {sharePost && (
+        <ShareModal
+          post={sharePost}
+          onClose={() => setSharePost(null)}
+        />
+      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 14,
-  },
-  headerArea: {
-    marginHorizontal: -14,
-    marginBottom: 12,
-  },
-  topBar: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  screenTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-    marginBottom: 10,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    height: 42,
-    gap: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    height: "100%",
-  },
-  clearBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  categoryContainer: {
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-  },
-  categoryScroll: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  catChip: {
-    borderRadius: 99,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  catChipText: {
-    fontSize: 13,
-  },
-  trendingSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: -0.2,
-  },
-  trendingGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-  },
-  trendingCard: {
-    width: "48%",
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-  },
-  trendingTag: {
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  trendingCount: {
-    fontSize: 11,
-    marginTop: 3,
-  },
-  creatorsSection: {
-    paddingTop: 18,
-  },
-  creatorsScroll: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  creatorCard: {
-    width: 130,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 14,
-    alignItems: "center",
-  },
-  creatorName: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 8,
-    textAlign: "center",
-  },
-  creatorUsername: {
-    fontSize: 11,
-    marginTop: 2,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  followBtn: {
-    width: "100%",
-    paddingVertical: 6,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  followBtnText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  discoverHeadingRow: {
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 6,
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-  emptyText: {
-    fontSize: 14,
-  },
-});

@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  Image,
-  Pressable,
+  TouchableOpacity,
   StyleSheet,
   Share as NativeShare,
 } from "react-native";
@@ -15,34 +14,44 @@ import { usePostsStore } from "@/hooks/usePosts";
 import { useAuth } from "@/store/auth.store";
 import {
   Heart,
-  MessageCircle,
+  MessageSquare,
   Share2,
-  Bookmark,
-  MoreHorizontal,
-  Eye,
+  BadgeCheck,
 } from "lucide-react-native";
 
 interface PostCardProps {
   post: Post;
+  truncate?: boolean;
+  isDetail?: boolean;
   onCommentPress?: (post: Post) => void;
   onSharePress?: (post: Post) => void;
 }
 
-export function PostCard({ post, onCommentPress, onSharePress }: PostCardProps) {
+export function PostCard({
+  post,
+  truncate = true,
+  isDetail = false,
+  onCommentPress,
+  onSharePress,
+}: PostCardProps) {
   const { colors, isDark } = useAppTheme();
-  const { toggleLike, toggleBookmark } = usePostsStore();
+  const { toggleLike } = usePostsStore();
   const currentUser = useAuth((s) => s.user);
+
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const postId = post.id || post._id || "";
   const currentUserId = currentUser?.id || "u0";
   const isLiked = (post.likes || []).includes(currentUserId);
-  const isBookmarked = (post.bookmarks || []).includes(currentUserId);
   const likeCount = post.likes ? post.likes.length : (post.likeCount || 0);
   const commentCount = post.comments ? post.comments.length : (post.commentCount || 0);
 
   const authorName = post.name || post.author?.username || post.username || "User";
-  const authorUsername = post.username || post.author?.username || "user";
+  const authorUsername = (post.username || post.author?.username || "user").replace(/^@/, "");
   const authorAvatar = post.avatar || post.author?.avatarUrl || currentUser?.avatar;
+
+  const shouldTruncate = truncate && !isDetail;
+  const isLongText = (post.content || "").length > 180;
 
   const handleLike = () => {
     toggleLike(
@@ -53,293 +62,173 @@ export function PostCard({ post, onCommentPress, onSharePress }: PostCardProps) 
     );
   };
 
-  const handleBookmark = () => {
-    toggleBookmark(postId, currentUserId);
-  };
-
   const handleShare = () => {
     if (onSharePress) {
       onSharePress(post);
     } else {
       NativeShare.share({
-        message: `${post.content}\n\nShared via MiniSocial`,
-      }).catch(() => {});
+        message: `${post.content}\n\nPosted by @${authorUsername} on MiniSocial`,
+      }).catch(() => { });
     }
   };
 
   const handleCardPress = () => {
-    router.push(`/(protected)/post/${postId}`);
+    if (!isDetail) {
+      router.push(`/(protected)/post/${postId}`);
+    }
   };
 
   return (
-    <Pressable
+    <TouchableOpacity
       onPress={handleCardPress}
+      disabled={isDetail}
+      activeOpacity={isDetail ? 1 : 0.9}
       style={[
         styles.card,
         {
           backgroundColor: colors.surface,
-          borderColor: colors.border,
+          borderColor: isDark ? "rgba(99, 102, 241, 0.28)" : colors.border,
         },
       ]}
     >
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.authorRow}>
-          <Avatar
-            src={authorAvatar}
-            size={42}
-            name={authorName}
-            verified={post.verified}
-          />
-          <View style={styles.authorInfo}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-                {authorName}
-              </Text>
-              {post.verified && (
-                <View style={styles.verifiedDot}>
-                  <Text style={styles.verifiedDotText}>✓</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.subRow}>
-              <Text style={[styles.username, { color: colors.text2 }]} numberOfLines={1}>
-                @{authorUsername}
-              </Text>
-              <Text style={[styles.dot, { color: colors.text3 }]}>•</Text>
-              <Text style={[styles.timeAgo, { color: colors.text3 }]}>
-                {post.timeAgo || "recently"}
-              </Text>
-            </View>
+        <Avatar
+          src={authorAvatar}
+          size={42}
+          gradientBorder={true}
+          name={authorName}
+        />
+        <View style={styles.authorInfo}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {authorName}
+            </Text>
+            {post.verified && (
+              <BadgeCheck size={16} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
+            )}
           </View>
+          <Text style={[styles.usernameRow, { color: colors.text3 }]} numberOfLines={1}>
+            @{authorUsername} · {post.timeAgo || "now"}
+          </Text>
         </View>
-
-        <Pressable
-          onPress={handleShare}
-          style={styles.moreButton}
-          hitSlop={10}
-        >
-          <MoreHorizontal size={18} color={colors.text3} />
-        </Pressable>
       </View>
 
-      {/* Content text */}
-      <Text style={[styles.content, { color: colors.text }]}>
+      {/* Post Text Content */}
+      <Text
+        style={[styles.content, { color: colors.text }]}
+        numberOfLines={shouldTruncate ? (isExpanded ? undefined : 4) : undefined}
+      >
         {post.content}
       </Text>
 
-      {/* Image attachment */}
-      {post.image ? (
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: post.image }}
-            style={styles.postImage}
-            resizeMode="cover"
-          />
-        </View>
-      ) : null}
-
-      {/* Tags */}
-      {post.tags && post.tags.length > 0 && (
-        <View style={styles.tagContainer}>
-          {post.tags.map((tag, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.tagPill,
-                {
-                  backgroundColor: isDark
-                    ? "rgba(99, 102, 241, 0.12)"
-                    : "rgba(99, 102, 241, 0.08)",
-                  borderColor: isDark
-                    ? "rgba(99, 102, 241, 0.25)"
-                    : "rgba(99, 102, 241, 0.2)",
-                },
-              ]}
-            >
-              <Text style={[styles.tagText, { color: colors.brand2 }]}>
-                #{tag}
-              </Text>
-            </View>
-          ))}
-        </View>
+      {shouldTruncate && isLongText && (
+        <TouchableOpacity
+          onPress={(e) => {
+            e.stopPropagation?.();
+            setIsExpanded(!isExpanded);
+          }}
+          activeOpacity={0.7}
+          className="-mt-2 mb-3"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={{ color: colors.brand2, fontSize: 13, fontWeight: "600" }}>
+            {isExpanded ? "Show less" : "Show more..."}
+          </Text>
+        </TouchableOpacity>
       )}
 
-      {/* Footer Actions */}
-      <View
-        style={[
-          styles.footer,
-          {
-            borderTopColor: colors.border,
-          },
-        ]}
-      >
-        {/* Like */}
-        <Pressable
-          onPress={handleLike}
-          style={styles.actionBtn}
-          hitSlop={8}
-        >
-          <Heart
-            size={18}
-            color={isLiked ? colors.pink : colors.text2}
-            fill={isLiked ? colors.pink : "none"}
-          />
-          <Text
-            style={[
-              styles.actionCount,
-              {
-                color: isLiked ? colors.pink : colors.text2,
-                fontWeight: isLiked ? "700" : "500",
-              },
-            ]}
+      {/* Action Footer: Like, Comment, Share */}
+      <View style={[styles.footer, { borderTopColor: isDark ? "rgba(255, 255, 255, 0.08)" : colors.border }]}>
+        {/* Left Actions: Like & Comment */}
+        <View style={styles.leftActions}>
+          {/* Like */}
+          <TouchableOpacity
+            onPress={handleLike}
+            activeOpacity={0.7}
+            style={styles.actionBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            {likeCount > 0 ? likeCount : ""}
-          </Text>
-        </Pressable>
+            <Heart
+              size={18}
+              color={isLiked ? colors.pink : colors.text3}
+              fill={isLiked ? colors.pink : "none"}
+            />
+            <Text
+              style={[
+                styles.actionCount,
+                { color: isLiked ? colors.pink : colors.text3 },
+              ]}
+            >
+              {likeCount}
+            </Text>
+          </TouchableOpacity>
 
-        {/* Comment */}
-        <Pressable
-          onPress={() => onCommentPress ? onCommentPress(post) : handleCardPress()}
-          style={styles.actionBtn}
-          hitSlop={8}
-        >
-          <MessageCircle size={18} color={colors.text2} />
-          <Text style={[styles.actionCount, { color: colors.text2 }]}>
-            {commentCount > 0 ? commentCount : ""}
-          </Text>
-        </Pressable>
+          {/* Comment */}
+          <TouchableOpacity
+            onPress={() => onCommentPress ? onCommentPress(post) : handleCardPress()}
+            activeOpacity={0.7}
+            style={styles.actionBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <MessageSquare size={18} color={colors.text3} />
+            <Text style={[styles.actionCount, { color: colors.text3 }]}>
+              {commentCount}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        {/* Share */}
-        <Pressable
+        {/* Right Action: Share */}
+        <TouchableOpacity
           onPress={handleShare}
-          style={styles.actionBtn}
-          hitSlop={8}
+          activeOpacity={0.7}
+          style={styles.shareBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Share2 size={18} color={colors.text2} />
-          <Text style={[styles.actionCount, { color: colors.text2 }]}>
-            {post.shares > 0 ? post.shares : ""}
+          <Share2 size={16} color={colors.text3} />
+          <Text style={[styles.shareText, { color: colors.text3 }]}>
+            Share
           </Text>
-        </Pressable>
-
-        {/* Bookmark */}
-        <Pressable
-          onPress={handleBookmark}
-          style={styles.actionBtn}
-          hitSlop={8}
-        >
-          <Bookmark
-            size={18}
-            color={isBookmarked ? colors.brand2 : colors.text2}
-            fill={isBookmarked ? colors.brand2 : "none"}
-          />
-        </Pressable>
+        </TouchableOpacity>
       </View>
-    </Pressable>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 3,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     marginBottom: 12,
   },
-  authorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flex: 1,
-  },
   authorInfo: {
+    marginLeft: 12,
     flex: 1,
   },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
   name: {
     fontSize: 15,
     fontWeight: "700",
-    letterSpacing: -0.2,
   },
-  verifiedDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#6366F1",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  verifiedDotText: {
-    color: "#FFF",
-    fontSize: 8,
-    fontWeight: "900",
-  },
-  subRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  username: {
-    fontSize: 12,
-    fontWeight: "500",
-  },
-  dot: {
-    fontSize: 10,
-  },
-  timeAgo: {
-    fontSize: 11,
-  },
-  moreButton: {
-    padding: 4,
+  usernameRow: {
+    fontSize: 13,
+    marginTop: 1.5,
   },
   content: {
     fontSize: 14.5,
     lineHeight: 22,
     marginBottom: 12,
-    fontWeight: "400",
-  },
-  imageContainer: {
-    borderRadius: 14,
-    overflow: "hidden",
-    marginBottom: 12,
-    height: 200,
-    width: "100%",
-  },
-  postImage: {
-    width: "100%",
-    height: "100%",
-  },
-  tagContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 14,
-  },
-  tagPill: {
-    borderRadius: 99,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderWidth: 1,
-  },
-  tagText: {
-    fontSize: 11,
-    fontWeight: "600",
   },
   footer: {
     flexDirection: "row",
@@ -348,15 +237,27 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
   },
+  leftActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+  },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
   },
   actionCount: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  shareBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  shareText: {
+    fontSize: 13,
     fontWeight: "600",
   },
 });

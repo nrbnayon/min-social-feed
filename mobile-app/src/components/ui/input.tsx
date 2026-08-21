@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   Platform,
   type TextInputProps,
+  type ViewStyle,
 } from "react-native";
 import { useAppTheme } from "@/context/ThemeContext";
-import { Eye, EyeOff } from "lucide-react-native";
+import { Eye, EyeOff, X } from "lucide-react-native";
 
 export interface InputProps extends TextInputProps {
   label?: string;
@@ -17,8 +18,12 @@ export interface InputProps extends TextInputProps {
   isPassword?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  clearable?: boolean;
+  onClear?: () => void;
   containerClassName?: string;
   wrapperClassName?: string;
+  wrapperStyle?: ViewStyle;
+  inputHeight?: number;
 }
 
 export function Input({
@@ -28,9 +33,14 @@ export function Input({
   isPassword,
   leftIcon,
   rightIcon,
+  clearable,
+  onClear,
   containerClassName = "mb-4",
   wrapperClassName = "",
+  wrapperStyle,
+  inputHeight = 50,
   style,
+  value,
   onFocus,
   onBlur,
   ...props
@@ -54,12 +64,15 @@ export function Input({
       ) : null}
 
       <View
-        style={{
-          height: 50,
-          borderColor: getBorderColor(),
-          borderWidth: isFocused ? 1.5 : 1,
-        }}
-        className={`flex-row items-center px-3.5 bg-surface rounded-lg ${wrapperClassName}`}
+        style={[
+          {
+            height: inputHeight,
+            borderColor: getBorderColor(),
+            borderWidth: isFocused ? 1.5 : 1,
+          },
+          wrapperStyle,
+        ]}
+        className={`flex-row items-center px-3.5 bg-surface rounded-xl ${wrapperClassName}`}
       >
         {leftIcon ? (
           <View className="mr-2.5 items-center justify-center pointer-events-none">
@@ -68,6 +81,7 @@ export function Input({
         ) : null}
 
         <TextInput
+          value={value}
           placeholderTextColor={colors.text3}
           secureTextEntry={isPassword && !showPassword}
           onFocus={(e) => {
@@ -81,13 +95,13 @@ export function Input({
           style={[
             {
               flex: 1,
-              fontSize: 16,
+              fontSize: 15,
               color: colors.text,
               paddingTop: 0,
               paddingBottom: 0,
               paddingVertical: 0,
               margin: 0,
-              height: Platform.OS === "ios" ? 44 : "100%",
+              height: Platform.OS === "ios" ? inputHeight - 8 : "100%",
               textAlignVertical: "center",
             },
             style,
@@ -107,6 +121,15 @@ export function Input({
             ) : (
               <Eye size={19} color={colors.text3} />
             )}
+          </TouchableOpacity>
+        ) : clearable && value && value.length > 0 ? (
+          <TouchableOpacity
+            onPress={onClear}
+            activeOpacity={0.7}
+            className="p-1"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <X size={16} color={colors.text3} />
           </TouchableOpacity>
         ) : rightIcon ? (
           <View className="ml-2 items-center justify-center">

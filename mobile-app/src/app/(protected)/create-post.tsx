@@ -4,42 +4,22 @@ import {
   Text,
   TextInput,
   ScrollView,
-  Pressable,
-  Image,
-  StyleSheet,
+  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
 import { useAuth } from "@/store/auth.store";
 import { Avatar } from "@/components/Shared/Avatar";
-import { Button } from "@/components/ui/button";
-import {
-  X,
-  Image as ImageIcon,
-  Tag,
-  Sparkles,
-  Smile,
-} from "lucide-react-native";
+import { Gradients } from "@/constants/theme";
+import { X, Send } from "lucide-react-native";
 
-const POPULAR_TAGS = [
-  "Tech",
-  "Design",
-  "AI",
-  "OpenSource",
-  "Startup",
-  "DevTools",
-  "Photography",
-];
-
-const SAMPLE_IMAGES = [
-  "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=350&fit=crop&auto=format",
-  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&h=350&fit=crop&auto=format",
-  "https://images.unsplash.com/photo-1603145733146-ae562a55031e?w=600&h=350&fit=crop&auto=format",
-];
+const MAX_CHARS = 280;
 
 export default function CreatePostScreen() {
   const insets = useSafeAreaInsets();
@@ -48,26 +28,7 @@ export default function CreatePostScreen() {
   const currentUser = useAuth((s) => s.user);
 
   const [content, setContent] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>(["DevTools"]);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const MAX_CHARS = 280;
-
-  const handleToggleTag = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-    );
-  };
-
-  const handleAttachRandomImage = () => {
-    if (selectedImage) {
-      setSelectedImage(null);
-    } else {
-      const randomImg = SAMPLE_IMAGES[Math.floor(Math.random() * SAMPLE_IMAGES.length)];
-      setSelectedImage(randomImg);
-    }
-  };
 
   const handlePublish = async () => {
     if (!content.trim() || loading) return;
@@ -75,324 +36,219 @@ export default function CreatePostScreen() {
     try {
       await createPost(
         content.trim(),
-        selectedTags,
-        selectedImage || undefined,
+        [], // No tags
+        undefined,
         currentUser
       );
       router.back();
-    } catch {
+    } finally {
       setLoading(false);
     }
   };
 
+  const isOverLimit = content.length > MAX_CHARS;
+  const isNearLimit = content.length > 250;
+  const canPublish = content.trim().length > 0 && !loading && !isOverLimit;
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[
-        styles.screen,
-        { backgroundColor: isDark ? "#090A12" : "#F8FAFC" },
-      ]}
+      style={{ flex: 1, backgroundColor: colors.background }}
     >
-      {/* Top Navigation Bar */}
+      {/* 🌟 Top Header with Back & Publish Button */}
       <View
-        style={[
-          styles.navBar,
-          {
-            paddingTop: insets.top + (Platform.OS === "ios" ? 6 : 12),
-            backgroundColor: isDark ? "#090A12" : "#F8FAFC",
-            borderBottomColor: colors.border,
-          },
-        ]}
+        style={{
+          paddingTop: insets.top + (Platform.OS === "ios" ? 8 : 12),
+          paddingBottom: 12,
+          paddingHorizontal: 16,
+          backgroundColor: isDark ? "rgba(9, 10, 18, 0.95)" : "rgba(248, 250, 252, 0.95)",
+          borderBottomColor: colors.border,
+          borderBottomWidth: 1,
+        }}
+        className="flex-row items-center justify-between"
       >
-        <Pressable
+        <TouchableOpacity
           onPress={() => router.back()}
-          style={[styles.closeBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-          hitSlop={8}
+          activeOpacity={0.7}
+          className="p-1.5 -ml-1.5"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <X size={18} color={colors.text} />
-        </Pressable>
+          <X size={22} color={colors.text} />
+        </TouchableOpacity>
 
-        <Text style={[styles.navTitle, { color: colors.text }]}>
-          Create Post
+        <Text
+          style={{ color: colors.text }}
+          className="text-base font-bold tracking-tight"
+        >
+          New Post
         </Text>
 
-        <Button
-          variant="gradient"
-          size="sm"
-          loading={loading}
-          disabled={!content.trim()}
+        {/* Top Header Publish Button */}
+        <TouchableOpacity
           onPress={handlePublish}
+          disabled={!canPublish}
+          activeOpacity={0.85}
+          style={{
+            opacity: canPublish ? 1 : 0.4,
+            borderRadius: 8,
+            overflow: "hidden",
+          }}
         >
-          Publish
-        </Button>
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 7,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 5,
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontSize: 13,
+                    fontWeight: "700",
+                  }}
+                >
+                  Publish
+                </Text>
+                <Send size={12} color="#FFFFFF" />
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
+      {/* 📝 Editor Body */}
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        className="flex-1 px-5"
+        contentContainerStyle={{
+          paddingTop: 18,
+          paddingBottom: 24,
+          flexGrow: 1,
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Author Header */}
-        <View style={styles.authorRow}>
+        {/* Author Header Row */}
+        <View className="flex-row items-center mb-4">
           <Avatar
             src={currentUser?.avatar}
             size={44}
-            name={currentUser?.name}
-            verified={currentUser?.verified}
+            gradientBorder={true}
+            name={currentUser?.name || "You"}
           />
-          <View>
-            <Text style={[styles.authorName, { color: colors.text }]}>
-              {currentUser?.name || "User"}
+          <View className="ml-3">
+            <Text
+              style={{ color: colors.text }}
+              className="text-base font-bold"
+            >
+              {currentUser?.name || "Jordan Ellis"}
             </Text>
-            <Text style={[styles.authorUsername, { color: colors.text3 }]}>
-              @{currentUser?.username || "user"} • Public
+            <Text
+              style={{ color: colors.text3 }}
+              className="text-xs mt-0.5"
+            >
+              @{currentUser?.username || "jordan"} • Public update
             </Text>
           </View>
         </View>
 
-        {/* Text Input */}
+        {/* Text Input Box */}
         <TextInput
           value={content}
           onChangeText={setContent}
-          maxLength={MAX_CHARS}
+          placeholder="What's happening? Share what's on your mind..."
+          placeholderTextColor={colors.text3}
           multiline
           autoFocus
-          placeholder="What's on your mind? Share your thoughts, discoveries, or ask a question..."
-          placeholderTextColor={colors.text3}
-          style={[styles.textInput, { color: colors.text }]}
+          maxLength={MAX_CHARS}
+          style={{
+            color: colors.text,
+            fontSize: 17,
+            lineHeight: 25,
+            minHeight: 180,
+            textAlignVertical: "top",
+          }}
         />
-
-        {/* Attached Image Preview */}
-        {selectedImage && (
-          <View style={styles.imagePreviewContainer}>
-            <Image
-              source={{ uri: selectedImage }}
-              style={styles.imagePreview}
-              resizeMode="cover"
-            />
-            <Pressable
-              onPress={() => setSelectedImage(null)}
-              style={styles.removeImageBtn}
-            >
-              <X size={16} color="#FFF" />
-            </Pressable>
-          </View>
-        )}
-
-        {/* Tags Selector */}
-        <View style={styles.tagsSection}>
-          <View style={styles.tagsHeader}>
-            <Tag size={15} color={colors.brand2} />
-            <Text style={[styles.tagsTitle, { color: colors.text2 }]}>
-              Add Topic Tags
-            </Text>
-          </View>
-
-          <View style={styles.tagPillsRow}>
-            {POPULAR_TAGS.map((tag) => {
-              const isSelected = selectedTags.includes(tag);
-              return (
-                <Pressable
-                  key={tag}
-                  onPress={() => handleToggleTag(tag)}
-                  style={[
-                    styles.tagPill,
-                    {
-                      backgroundColor: isSelected
-                        ? isDark
-                          ? "rgba(99, 102, 241, 0.25)"
-                          : "rgba(99, 102, 241, 0.15)"
-                        : colors.surface2,
-                      borderColor: isSelected
-                        ? colors.brand
-                        : colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.tagPillText,
-                      {
-                        color: isSelected ? colors.brand2 : colors.text2,
-                        fontWeight: isSelected ? "700" : "500",
-                      },
-                    ]}
-                  >
-                    #{tag}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
       </ScrollView>
 
-      {/* Bottom Tool Strip */}
+      {/* 📊 Bottom Action Bar (Always visible at bottom & pinned above keyboard) */}
       <View
-        style={[
-          styles.bottomTools,
-          {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.border,
-            paddingBottom: Math.max(insets.bottom, 12),
-          },
-        ]}
+        style={{
+          paddingBottom: Math.max(insets.bottom, 12),
+          paddingTop: 10,
+          paddingHorizontal: 16,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
+          borderTopWidth: 1,
+        }}
+        className="flex-row items-center justify-between"
       >
-        <View style={styles.toolIconRow}>
-          <Pressable
-            onPress={handleAttachRandomImage}
-            style={[
-              styles.toolBtn,
-              { backgroundColor: selectedImage ? colors.brand : colors.surface2 },
-            ]}
-          >
-            <ImageIcon size={19} color={selectedImage ? "#FFF" : colors.brand2} />
-          </Pressable>
-
-          <Pressable style={[styles.toolBtn, { backgroundColor: colors.surface2 }]}>
-            <Sparkles size={19} color={colors.brand2} />
-          </Pressable>
-
-          <Pressable style={[styles.toolBtn, { backgroundColor: colors.surface2 }]}>
-            <Smile size={19} color={colors.brand2} />
-          </Pressable>
-        </View>
-
+        {/* Character Counter (e.g. 0 / 280) */}
         <Text
-          style={[
-            styles.charCounter,
-            {
-              color:
-                content.length > MAX_CHARS * 0.85
-                  ? colors.pink
-                  : colors.text3,
-            },
-          ]}
+          style={{
+            color: isOverLimit
+              ? colors.pink
+              : isNearLimit
+              ? colors.yellow
+              : colors.text3,
+            fontSize: 13,
+            fontWeight: "700",
+          }}
         >
-          {MAX_CHARS - content.length}
+          {content.length} / {MAX_CHARS}
         </Text>
+
+        {/* Bottom Right Post Button */}
+        <TouchableOpacity
+          onPress={handlePublish}
+          disabled={!canPublish}
+          activeOpacity={0.85}
+          style={{
+            opacity: canPublish ? 1 : 0.4,
+            borderRadius: 8,
+            overflow: "hidden",
+          }}
+        >
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              paddingHorizontal: 18,
+              paddingVertical: 9,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontSize: 14,
+                    fontWeight: "700",
+                  }}
+                >
+                  Post
+                </Text>
+                <Send size={14} color="#FFFFFF" />
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  navBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  authorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
-  },
-  authorName: {
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  authorUsername: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  textInput: {
-    fontSize: 16,
-    lineHeight: 24,
-    minHeight: 140,
-    textAlignVertical: "top",
-  },
-  imagePreviewContainer: {
-    borderRadius: 16,
-    overflow: "hidden",
-    marginTop: 14,
-    height: 200,
-    position: "relative",
-  },
-  imagePreview: {
-    width: "100%",
-    height: "100%",
-  },
-  removeImageBtn: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tagsSection: {
-    marginTop: 24,
-  },
-  tagsHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 10,
-  },
-  tagsTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  tagPillsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  tagPill: {
-    borderRadius: 99,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  tagPillText: {
-    fontSize: 12,
-  },
-  bottomTools: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-  },
-  toolIconRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  toolBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  charCounter: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-});

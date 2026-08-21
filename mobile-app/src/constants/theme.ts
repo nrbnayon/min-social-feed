@@ -82,6 +82,7 @@ export const Gradients = {
   cardDark: ['rgba(20, 23, 34, 0.95)', 'rgba(27, 32, 49, 0.85)'] as const,
   cardLight: ['rgba(255, 255, 255, 0.95)', 'rgba(241, 245, 249, 0.9)'] as const,
   storySeen: ['#252B40', '#1B2031'] as const,
+  avatarPlaceholder: ['#6366F1', '#8B5CF6'] as const,
 };
 
 export const Spacing = {

@@ -1,24 +1,26 @@
 import React from "react";
-import { View, Image, Text, Pressable, StyleSheet } from "react-native";
+import { View, Image, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Gradients } from "@/constants/theme";
 import { useAppTheme } from "@/context/ThemeContext";
+import { BadgeCheck } from "lucide-react-native";
 
-interface AvatarProps {
+export interface AvatarProps {
   src?: string;
   size?: number;
   ring?: boolean;
+  gradientBorder?: boolean;
   seen?: boolean;
   verified?: boolean;
   name?: string;
   onPress?: () => void;
-  className?: string;
 }
 
 export function Avatar({
   src,
-  size = 40,
-  ring = false,
+  size = 42,
+  ring = true,
+  gradientBorder = true,
   seen = false,
   verified = false,
   name,
@@ -33,11 +35,14 @@ export function Avatar({
     return n.slice(0, 2).toUpperCase();
   };
 
-  const imageSize = ring ? size - 6 : size;
+  const showRing = ring || gradientBorder;
+  const borderWidth = 2;
+  const gapWidth = 1.5;
+  const innerSize = showRing ? size - (borderWidth + gapWidth) * 2 : size;
 
   const content = (
     <View style={[styles.wrapper, { width: size, height: size }]}>
-      {ring ? (
+      {showRing ? (
         <LinearGradient
           colors={seen ? Gradients.storySeen : Gradients.brand}
           start={{ x: 0, y: 0 }}
@@ -48,7 +53,7 @@ export function Avatar({
               width: size,
               height: size,
               borderRadius: size / 2,
-              padding: 2.5,
+              padding: borderWidth,
             },
           ]}
         >
@@ -56,8 +61,11 @@ export function Avatar({
             style={[
               styles.innerContainer,
               {
-                borderRadius: imageSize / 2,
+                width: size - borderWidth * 2,
+                height: size - borderWidth * 2,
+                borderRadius: (size - borderWidth * 2) / 2,
                 backgroundColor: colors.background,
+                padding: gapWidth,
               },
             ]}
           >
@@ -65,95 +73,91 @@ export function Avatar({
               <Image
                 source={{ uri: src }}
                 style={{
-                  width: imageSize,
-                  height: imageSize,
-                  borderRadius: imageSize / 2,
+                  width: innerSize,
+                  height: innerSize,
+                  borderRadius: innerSize / 2,
                 }}
                 resizeMode="cover"
               />
             ) : (
-              <View
-                style={[
-                  styles.fallback,
-                  {
-                    width: imageSize,
-                    height: imageSize,
-                    borderRadius: imageSize / 2,
-                    backgroundColor: colors.surface2,
-                  },
-                ]}
+              <LinearGradient
+                colors={Gradients.avatarPlaceholder}
+                style={{
+                  width: innerSize,
+                  height: innerSize,
+                  borderRadius: innerSize / 2,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <Text style={[styles.initials, { fontSize: imageSize * 0.4, color: colors.text }]}>
+                <Text
+                  style={{
+                    color: "#FFFFFF",
+                    fontSize: Math.max(10, innerSize * 0.38),
+                    fontWeight: "800",
+                  }}
+                >
                   {getInitials(name)}
                 </Text>
-              </View>
+              </LinearGradient>
             )}
           </View>
         </LinearGradient>
       ) : (
         <View
-          style={[
-            styles.imageContainer,
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              backgroundColor: colors.surface2,
-            },
-          ]}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            overflow: "hidden",
+            backgroundColor: colors.surface2,
+          }}
         >
           {src ? (
             <Image
               source={{ uri: src }}
-              style={{
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-              }}
+              style={{ width: size, height: size }}
               resizeMode="cover"
             />
           ) : (
-            <View
-              style={[
-                styles.fallback,
-                {
-                  width: size,
-                  height: size,
-                  borderRadius: size / 2,
-                  backgroundColor: colors.surface2,
-                },
-              ]}
+            <LinearGradient
+              colors={Gradients.avatarPlaceholder}
+              style={{
+                width: size,
+                height: size,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
             >
-              <Text style={[styles.initials, { fontSize: size * 0.4, color: colors.text }]}>
+              <Text
+                style={{
+                  color: "#FFFFFF",
+                  fontSize: Math.max(10, size * 0.38),
+                  fontWeight: "800",
+                }}
+              >
                 {getInitials(name)}
               </Text>
-            </View>
+            </LinearGradient>
           )}
         </View>
       )}
 
+      {/* Verified Badge */}
       {verified && (
-        <View
-          style={[
-            styles.verifiedBadge,
-            {
-              width: Math.max(14, size * 0.32),
-              height: Math.max(14, size * 0.32),
-              borderRadius: Math.max(7, size * 0.16),
-              borderColor: colors.background,
-            },
-          ]}
-        >
-          <Text style={{ color: "#FFF", fontSize: Math.max(9, size * 0.2), fontWeight: "900" }}>
-            ✓
-          </Text>
+        <View style={styles.badgeWrapper}>
+          <BadgeCheck size={14} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
         </View>
       )}
     </View>
   );
 
   if (onPress) {
-    return <Pressable onPress={onPress}>{content}</Pressable>;
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
+        {content}
+      </TouchableOpacity>
+    );
   }
 
   return content;
@@ -174,26 +178,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
-  imageContainer: {
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fallback: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initials: {
-    fontWeight: "700",
-  },
-  verifiedBadge: {
+  badgeWrapper: {
     position: "absolute",
-    bottom: -1,
-    right: -1,
-    backgroundColor: "#6366F1",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
+    bottom: -2,
+    right: -2,
+    borderRadius: 7,
   },
 });
 
