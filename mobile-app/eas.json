@@ -45,7 +45,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appName": "min-social-feed"
+        "appName": "mini-social-feed"
       }
     }
   }

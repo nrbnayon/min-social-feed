@@ -1,8 +1,8 @@
 {
   "project_info": {
     "project_number": "203859084411",
-    "project_id": "min-social-feed-push-notification",
-    "storage_bucket": "min-social-feed-push-notification.firebasestorage.app"
+    "project_id": "mini-social-feed-push-notification",
+    "storage_bucket": "mini-social-feed-push-notification.firebasestorage.app"
   },
   "client": [
     {

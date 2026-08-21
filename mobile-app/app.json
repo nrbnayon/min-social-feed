@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Mini Social Feed",
-    "slug": "min-social-feed",
+    "slug": "mini-social-feed",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icons/app-icon.png",
-    "scheme": "min-social-feed",
+    "scheme": "mini-social-feed",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#090A12",
     "ios": {

@@ -11,9 +11,9 @@
 	<key>BUNDLE_ID</key>
 	<string>com.minisocial.feed</string>
 	<key>PROJECT_ID</key>
-	<string>min-social-feed-push-notification</string>
+	<string>mini-social-feed-push-notification</string>
 	<key>STORAGE_BUCKET</key>
-	<string>min-social-feed-push-notification.firebasestorage.app</string>
+	<string>mini-social-feed-push-notification.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>

@@ -1,4 +1,4 @@
-# min-social-feed API
+# mini-social-feed API
 
 ## Setup
 

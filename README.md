@@ -1,4 +1,4 @@
-# min-social-feed
+# mini-social-feed
 
 A small social feed application with an Expo React Native client and an Express/MongoDB API.
 
