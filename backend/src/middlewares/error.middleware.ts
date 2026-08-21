@@ -1,14 +1,14 @@
 import type { ErrorRequestHandler } from "express";
 import { sendError } from "../utils/api-response.js";
-import { AuthError } from "../services/auth.service.js";
+import { AppError } from "../utils/app-error.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, _request, response, _next) => {
-  // If it's a known AuthError
-  if (error instanceof AuthError) {
+  // Known application error (AuthError, AppError, or any subclass)
+  if (error instanceof AppError) {
     return sendError(response, error.message, error.statusCode);
   }
 
-  // Handle Mongoose duplicate key error (11000)
+  // Mongoose duplicate key error (E11000)
   if (error.code === 11000) {
     const field = Object.keys(error.keyPattern || {})[0] || "field";
     return sendError(
@@ -18,21 +18,22 @@ export const errorMiddleware: ErrorRequestHandler = (error, _request, response, 
     );
   }
 
-  // Handle Mongoose validation errors
+  // Mongoose schema validation error
   if (error.name === "ValidationError") {
     const messages = Object.values(error.errors || {}).map((e: any) => e.message);
-    return sendError(response, messages[0] || "Validation failed", 400, messages);
+    return sendError(response, messages[0] || "Validation failed.", 400, messages);
   }
 
-  // Handle JSON parsing errors
+  // Malformed JSON body
   if (error instanceof SyntaxError && "body" in error) {
-    return sendError(response, "Invalid JSON payload in request body", 400);
+    return sendError(response, "Invalid JSON in request body.", 400);
   }
 
-  console.error("Unhandled Server Error:", error);
+  // Unexpected server errors
+  console.error("[Server Error]", error);
   return sendError(
     response,
-    error instanceof Error ? error.message : "An unexpected server error occurred",
+    error instanceof Error ? error.message : "An unexpected server error occurred.",
     500
   );
 };

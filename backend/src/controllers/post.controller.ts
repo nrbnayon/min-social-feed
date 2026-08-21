@@ -1,8 +1,73 @@
 import type { RequestHandler } from "express";
-import { addComment, createPost, listPosts, toggleLike } from "../services/post.service.js";
+import { listPosts, createPost, toggleLike, addComment } from "../services/post.service.js";
 import { sendSuccess } from "../utils/api-response.js";
 
-export const getPosts: RequestHandler = async (request, response, next) => { try { sendSuccess(response, await listPosts(Number(request.query.page) || 1, Number(request.query.limit) || 20, request.query.username as string)); } catch (error) { next(error); } };
-export const createPostController: RequestHandler = async (request, response, next) => { try { sendSuccess(response, await createPost(request.user!._id.toString(), request.body.content), 201); } catch (error) { next(error); } };
-export const likePost: RequestHandler = async (request, response, next) => { try { sendSuccess(response, await toggleLike(String(request.params.id), request.user!._id.toString())); } catch (error) { next(error); } };
-export const commentPost: RequestHandler = async (request, response, next) => { try { sendSuccess(response, await addComment(String(request.params.id), request.user!._id.toString(), request.body.content), 201); } catch (error) { next(error); } };
+// ─── GET /api/posts ────────────────────────────────────────────────────────────
+
+/**
+ * List posts with optional username filter and pagination.
+ * Query params: ?page=1&limit=20&username=jordan
+ */
+export const getPosts: RequestHandler = async (request, response, next) => {
+  try {
+    const page = Number(request.query.page) || 1;
+    const limit = Number(request.query.limit) || 20;
+    const username = request.query.username as string | undefined;
+
+    const result = await listPosts(page, limit, username);
+    return sendSuccess(response, result, "Posts fetched successfully.", 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── POST /api/posts ───────────────────────────────────────────────────────────
+
+/**
+ * Create a new post for the authenticated user.
+ */
+export const createPostController: RequestHandler = async (request, response, next) => {
+  try {
+    const authorId = request.user!._id.toString();
+    const post = await createPost(authorId, {
+      content: request.body.content,
+      images: request.body.images,
+    });
+    return sendSuccess(response, { post }, "Post created successfully.", 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── POST /api/posts/:id/like ──────────────────────────────────────────────────
+
+/**
+ * Toggle like on a post. Returns the new like state and updated count.
+ */
+export const likePost: RequestHandler = async (request, response, next) => {
+  try {
+    const postId = String(request.params.id);
+    const userId = request.user!._id.toString();
+    const result = await toggleLike(postId, userId);
+    const message = result.liked ? "Post liked." : "Post unliked.";
+    return sendSuccess(response, result, message, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── POST /api/posts/:id/comments ─────────────────────────────────────────────
+
+/**
+ * Add a comment to a post for the authenticated user.
+ */
+export const commentPost: RequestHandler = async (request, response, next) => {
+  try {
+    const postId = String(request.params.id);
+    const authorId = request.user!._id.toString();
+    const comment = await addComment(postId, authorId, { content: request.body.content });
+    return sendSuccess(response, { comment }, "Comment added.", 201);
+  } catch (error) {
+    next(error);
+  }
+};

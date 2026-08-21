@@ -82,7 +82,7 @@ export function LogoutModal({ visible, onCancel, onConfirm }: LogoutModalProps) 
               style={{
                 backgroundColor: "#EF4444",
               }}
-              className="flex-1 py-3 rounded-xl items-center justify-center shadow-sm"
+              className={`flex-1 py-3 rounded-xl items-center justify-center ${appShadow}`}
             >
               <Text className="text-xs font-bold text-white">
                 Sign Out

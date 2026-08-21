@@ -1,70 +1,50 @@
-import { User, type UserDocument } from "../models/User.js";
+import { User } from "../models/User.js";
 import { comparePassword, hashPassword } from "../utils/password.js";
 import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
 } from "../utils/jwt.js";
+import { AuthError } from "../utils/app-error.js";
+import type {
+  RegisterDTO,
+  LoginDTO,
+  EditProfileDTO,
+  AuthResponse,
+  ProfileResponse,
+  RefreshTokenResponse,
+} from "../types/auth.types.js";
 
-export class AuthError extends Error {
-  statusCode: number;
-  constructor(message: string, statusCode = 400) {
-    super(message);
-    this.name = "AuthError";
-    this.statusCode = statusCode;
-  }
-}
+// Re-export AuthError so any existing imports from this file keep working
+export { AuthError };
 
-export interface RegisterDTO {
-  name: string;
-  username: string;
-  email: string;
-  password: string;
-}
-
-export interface LoginDTO {
-  email: string; // Accepts email or username
-  password: string;
-}
-
-export interface EditProfileDTO {
-  name?: string;
-  username?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  avatar?: string;
-  coverImage?: string;
-}
+// ─── Register ─────────────────────────────────────────────────────────────────
 
 /**
- * Register a new user
+ * Register a new user.
+ * Checks for duplicate email / username before creating the account.
  */
-export const register = async (input: RegisterDTO) => {
+export const register = async (input: RegisterDTO): Promise<AuthResponse> => {
   const normalizedEmail = input.email.toLowerCase().trim();
   const normalizedUsername = input.username.toLowerCase().trim();
 
-  // Check if email already exists
-  const existingEmail = await User.findOne({ email: normalizedEmail });
-  if (existingEmail) {
-    throw new AuthError("An account with this email address already exists.", 409);
-  }
-
-  // Check if username already exists
-  const existingUsername = await User.findOne({ username: normalizedUsername });
-  if (existingUsername) {
+  // Check duplicates in a single query for efficiency
+  const existing = await User.findOne({
+    $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
+  });
+  if (existing) {
+    if (existing.email === normalizedEmail) {
+      throw new AuthError("An account with this email address already exists.", 409);
+    }
     throw new AuthError("This username is already taken. Please choose another.", 409);
   }
 
-  // Hash password with salt
   const passwordHash = await hashPassword(input.password);
 
-  // Default avatar generator based on name
   const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(
     normalizedUsername
   )}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
-  // Create new user in database
   const user = new User({
     name: input.name.trim(),
     username: normalizedUsername,
@@ -77,7 +57,6 @@ export const register = async (input: RegisterDTO) => {
     refreshTokens: [],
   });
 
-  // Generate tokens
   const accessToken = generateAccessToken({
     userId: user.id,
     email: user.email,
@@ -85,7 +64,6 @@ export const register = async (input: RegisterDTO) => {
   });
   const refreshToken = generateRefreshToken({ userId: user.id });
 
-  // Store refresh token
   user.refreshTokens = [refreshToken];
   await user.save();
 
@@ -96,13 +74,15 @@ export const register = async (input: RegisterDTO) => {
   };
 };
 
+// ─── Login ────────────────────────────────────────────────────────────────────
+
 /**
- * Log in an existing user (by email or username)
+ * Log in an existing user by email or username.
+ * Keeps up to 5 active refresh tokens for multi-device support.
  */
-export const login = async (input: LoginDTO) => {
+export const login = async (input: LoginDTO): Promise<AuthResponse> => {
   const identifier = input.email.toLowerCase().trim();
 
-  // Find user by email or username, explicitly selecting passwordHash and refreshTokens
   const user = await User.findOne({
     $or: [{ email: identifier }, { username: identifier }],
   }).select("+passwordHash +refreshTokens");
@@ -111,13 +91,11 @@ export const login = async (input: LoginDTO) => {
     throw new AuthError("Invalid email/username or password.", 401);
   }
 
-  // Compare password
   const isMatch = await comparePassword(input.password, user.passwordHash);
   if (!isMatch) {
     throw new AuthError("Invalid email/username or password.", 401);
   }
 
-  // Generate fresh tokens
   const accessToken = generateAccessToken({
     userId: user.id,
     email: user.email,
@@ -125,7 +103,7 @@ export const login = async (input: LoginDTO) => {
   });
   const refreshToken = generateRefreshToken({ userId: user.id });
 
-  // Keep last 5 valid refresh tokens for multi-device support
+  // Keep last 4 valid tokens + new one (max 5 devices)
   const existingTokens = Array.isArray(user.refreshTokens)
     ? user.refreshTokens.slice(-4)
     : [];
@@ -139,24 +117,29 @@ export const login = async (input: LoginDTO) => {
   };
 };
 
+// ─── Get Me ───────────────────────────────────────────────────────────────────
+
 /**
- * Get current authenticated user profile
+ * Fetch the currently authenticated user's profile.
  */
-export const getMe = async (userId: string) => {
+export const getMe = async (userId: string): Promise<ProfileResponse> => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AuthError("User account not found.", 404);
   }
-
-  return {
-    user: user.toPublicJSON(),
-  };
+  return { user: user.toPublicJSON() };
 };
 
+// ─── Refresh Token ────────────────────────────────────────────────────────────
+
 /**
- * Rotate Refresh Token & Issue new Access Token
+ * Rotate the refresh token and issue a new access token.
+ * Implements refresh token reuse detection — if a revoked token is presented,
+ * all sessions are invalidated immediately.
  */
-export const refreshUserToken = async (incomingRefreshToken: string) => {
+export const refreshUserToken = async (
+  incomingRefreshToken: string
+): Promise<RefreshTokenResponse> => {
   if (!incomingRefreshToken) {
     throw new AuthError("Refresh token is required.", 400);
   }
@@ -164,26 +147,26 @@ export const refreshUserToken = async (incomingRefreshToken: string) => {
   let decoded: { userId: string };
   try {
     decoded = verifyRefreshToken(incomingRefreshToken);
-  } catch (err) {
+  } catch {
     throw new AuthError("Invalid or expired refresh token. Please sign in again.", 401);
   }
 
-  // Find user with refreshTokens
   const user = await User.findById(decoded.userId).select("+refreshTokens");
   if (!user) {
     throw new AuthError("User no longer exists.", 401);
   }
 
-  // Check if the refresh token is in the user's active tokens
   const tokenIndex = (user.refreshTokens || []).indexOf(incomingRefreshToken);
   if (tokenIndex === -1) {
-    // Token reuse detected or already revoked - clear all for security
+    // Reuse detected — revoke all sessions for security
     user.refreshTokens = [];
     await user.save();
-    throw new AuthError("Suspicious refresh token reuse detected. Please sign in again.", 403);
+    throw new AuthError(
+      "Suspicious refresh token reuse detected. All sessions have been revoked. Please sign in again.",
+      403
+    );
   }
 
-  // Generate new token pair
   const newAccessToken = generateAccessToken({
     userId: user.id,
     email: user.email,
@@ -191,7 +174,7 @@ export const refreshUserToken = async (incomingRefreshToken: string) => {
   });
   const newRefreshToken = generateRefreshToken({ userId: user.id });
 
-  // Replace old refresh token with new one (Token Rotation)
+  // Token rotation: replace old with new in-place
   user.refreshTokens.splice(tokenIndex, 1, newRefreshToken);
   await user.save();
 
@@ -201,26 +184,33 @@ export const refreshUserToken = async (incomingRefreshToken: string) => {
   };
 };
 
+// ─── Edit Profile ─────────────────────────────────────────────────────────────
+
 /**
- * Edit User Profile
+ * Update the authenticated user's profile fields.
+ * Only fields explicitly provided in the payload are updated.
  */
-export const editProfile = async (userId: string, data: EditProfileDTO) => {
+export const editProfile = async (
+  userId: string,
+  data: EditProfileDTO
+): Promise<ProfileResponse> => {
   const user = await User.findById(userId);
   if (!user) {
     throw new AuthError("User account not found.", 404);
   }
 
-  // If username is being changed, check uniqueness
-  if (data.username && data.username.toLowerCase().trim() !== user.username) {
+  if (data.username) {
     const newUsername = data.username.toLowerCase().trim();
-    const existing = await User.findOne({
-      username: newUsername,
-      _id: { $ne: user._id },
-    });
-    if (existing) {
-      throw new AuthError("This username is already taken.", 409);
+    if (newUsername !== user.username) {
+      const taken = await User.findOne({
+        username: newUsername,
+        _id: { $ne: user._id },
+      });
+      if (taken) {
+        throw new AuthError("This username is already taken.", 409);
+      }
+      user.username = newUsername;
     }
-    user.username = newUsername;
   }
 
   if (data.name !== undefined) user.name = data.name.trim();
@@ -235,22 +225,23 @@ export const editProfile = async (userId: string, data: EditProfileDTO) => {
 
   await user.save();
 
-  return {
-    user: user.toPublicJSON(),
-  };
+  return { user: user.toPublicJSON() };
 };
 
+// ─── Logout ───────────────────────────────────────────────────────────────────
+
 /**
- * Logout User (Revoke Refresh Token)
+ * Revoke the provided refresh token (or all tokens if none is given).
  */
-export const logoutUser = async (userId: string, refreshToken?: string) => {
+export const logoutUser = async (
+  userId: string,
+  refreshToken?: string
+): Promise<{ message: string }> => {
   const user = await User.findById(userId).select("+refreshTokens");
   if (user) {
-    if (refreshToken) {
-      user.refreshTokens = (user.refreshTokens || []).filter((t) => t !== refreshToken);
-    } else {
-      user.refreshTokens = [];
-    }
+    user.refreshTokens = refreshToken
+      ? (user.refreshTokens || []).filter((t) => t !== refreshToken)
+      : [];
     await user.save();
   }
   return { message: "Successfully logged out." };

@@ -1,6 +1,13 @@
 import { Router } from "express";
-import { getNotifications } from "../controllers/notification.controller.js";
+import {
+  getNotificationsController,
+  markReadController,
+  markAllReadController,
+} from "../controllers/notification.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 export const notificationRoutes = Router();
-notificationRoutes.get("/", requireAuth, getNotifications);
+
+notificationRoutes.get("/", requireAuth, getNotificationsController);
+notificationRoutes.patch("/:id/read", requireAuth, markReadController);
+notificationRoutes.patch("/read-all", requireAuth, markAllReadController);
