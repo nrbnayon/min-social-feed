@@ -4,6 +4,6 @@
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",
     "build:backend": "npm --prefix backend run build",
-    "dev:mobile": "npm --prefix mobile start"
+    "dev:mobile": "npm --prefix mobile-app start"
   }
 }

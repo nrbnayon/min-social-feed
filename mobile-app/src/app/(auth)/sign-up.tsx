@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   Pressable,
-  StyleSheet,
+  Image,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -14,14 +16,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/store/auth.store";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Gradients } from "@/constants/theme";
-import { MessageSquare } from "lucide-react-native";
+import {
+  User,
+  AtSign,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+} from "lucide-react-native";
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const { register } = useAuth();
   const showToast = useToastStore((s) => s.showToast);
 
@@ -29,6 +36,7 @@ export default function SignUpScreen() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,123 +74,187 @@ export default function SignUpScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[
-        styles.screen,
-        { backgroundColor: isDark ? "#090A12" : "#F8FAFC" },
-      ]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background"
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 30 },
-        ]}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          paddingTop: insets.top + 16,
+          paddingBottom: insets.bottom + 20,
+        }}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        className="flex-1 px-5"
       >
-        <View style={styles.container}>
-          {/* Logo Branding */}
-          <View style={styles.branding}>
-            <LinearGradient
-              colors={Gradients.brand}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoBadge}
-            >
-              <MessageSquare size={28} color="#FFFFFF" strokeWidth={2.5} />
-            </LinearGradient>
-            <Text style={[styles.brandTitle, { color: colors.text }]}>
+        <View className="w-full max-w-sm mx-auto justify-center">
+          {/* App Logo & Branding */}
+          <View className="items-center mb-5">
+            <Image
+              source={require("@/assets/images/app-logo.png")}
+              className="w-14 h-14 rounded-2xl mb-2"
+              resizeMode="contain"
+            />
+            <Text className="text-2xl font-extrabold text-foreground tracking-tight">
               MiniSocial
             </Text>
           </View>
 
           {/* Form Card */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
+          <View className="bg-surface rounded-3xl p-6 border border-border shadow-2xl mb-4">
+            <Text className="text-2xl font-bold text-foreground tracking-tight">
               Create an account
             </Text>
-            <Text style={[styles.cardSubtitle, { color: colors.text2 }]}>
-              Join the conversation and connect with creators
+            <Text className="text-sm text-textSecondary mt-1 mb-4">
+              Join the conversation with creators
             </Text>
 
+            {/* Error Message */}
             {error ? (
-              <View
-                style={[
-                  styles.errorBox,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(236, 72, 153, 0.12)"
-                      : "rgba(236, 72, 153, 0.08)",
-                    borderColor: isDark
-                      ? "rgba(236, 72, 153, 0.3)"
-                      : "rgba(236, 72, 153, 0.2)",
-                  },
-                ]}
-              >
-                <Text style={[styles.errorText, { color: colors.pink }]}>
+              <View className="bg-pink/10 border border-pink/30 rounded-xl p-3 mb-3">
+                <Text className="text-xs font-semibold text-pink text-center">
                   {error}
                 </Text>
               </View>
             ) : null}
 
-            <Input
-              label="Full Name"
-              placeholder="e.g. Alex Morgan"
-              value={name}
-              onChangeText={setName}
-            />
+            {/* Full Name */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+                Full Name
+              </Text>
+              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+                <User size={18} color={colors.text3} />
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="e.g. Alex Morgan"
+                  placeholderTextColor={colors.text3}
+                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                />
+              </View>
+            </View>
 
-            <Input
-              label="Username"
-              placeholder="e.g. alex_design"
-              value={username}
-              onChangeText={setUsername}
-              autoCapitalize="none"
-            />
+            {/* Username */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+                Username
+              </Text>
+              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+                <AtSign size={18} color={colors.text3} />
+                <TextInput
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="e.g. alex_design"
+                  placeholderTextColor={colors.text3}
+                  autoCapitalize="none"
+                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                />
+              </View>
+            </View>
 
-            <Input
-              label="Email"
-              placeholder="alex@example.com"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+            {/* Email */}
+            <View className="mb-3">
+              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+                Email Address
+              </Text>
+              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+                <Mail size={18} color={colors.text3} />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="alex@example.com"
+                  placeholderTextColor={colors.text3}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                />
+              </View>
+            </View>
 
-            <Input
-              label="Password"
-              placeholder="Minimum 6 characters"
-              value={password}
-              onChangeText={setPassword}
-              isPassword
-            />
+            {/* Password */}
+            <View className="mb-4">
+              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+                Password
+              </Text>
+              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+                <Lock size={18} color={colors.text3} />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Minimum 6 characters"
+                  placeholderTextColor={colors.text3}
+                  secureTextEntry={!showPassword}
+                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                />
+                <Pressable
+                  onPress={() => setShowPassword((s) => !s)}
+                  className="p-1"
+                  hitSlop={8}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={colors.text3} />
+                  ) : (
+                    <Eye size={18} color={colors.text3} />
+                  )}
+                </Pressable>
+              </View>
+            </View>
 
-            <Button
-              variant="gradient"
-              size="lg"
-              loading={loading}
+            {/* Submit Button */}
+            <Pressable
               onPress={handleSignUp}
-              style={{ marginTop: 8 }}
+              disabled={loading}
+              className="w-full rounded-xl overflow-hidden active:opacity-90 active:scale-[0.99] mb-3"
             >
-              Create Account
-            </Button>
+              <LinearGradient
+                colors={Gradients.brand}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                className="h-12 items-center justify-center px-4"
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text className="text-white font-bold text-base">
+                    Create Account
+                  </Text>
+                )}
+              </LinearGradient>
+            </Pressable>
+
+            {/* Terms & Privacy Links */}
+            <View className="flex-row flex-wrap justify-center items-center">
+              <Text className="text-[11px] text-textSecondary text-center leading-4">
+                By signing up, you agree to our{" "}
+              </Text>
+              <Link href="/(public)/terms" asChild>
+                <Pressable>
+                  <Text className="text-[11px] font-bold text-brand2">
+                    Terms
+                  </Text>
+                </Pressable>
+              </Link>
+              <Text className="text-[11px] text-textSecondary"> and </Text>
+              <Link href="/(public)/privacy" asChild>
+                <Pressable>
+                  <Text className="text-[11px] font-bold text-brand2">
+                    Privacy Policy
+                  </Text>
+                </Pressable>
+              </Link>
+            </View>
           </View>
 
           {/* Footer Link */}
-          <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: colors.text2 }]}>
-              Already have an account?{" "}
+          <View className="flex-row justify-center items-center gap-1">
+            <Text className="text-sm text-textSecondary">
+              Already have an account?
             </Text>
             <Link href="/(auth)/login" asChild>
-              <Pressable>
-                <Text style={[styles.linkText, { color: colors.brand2 }]}>
+              <Pressable className="py-1 px-1">
+                <Text className="text-sm font-bold text-brand2">
                   Sign in
                 </Text>
               </Pressable>
@@ -193,85 +265,3 @@ export default function SignUpScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  container: {
-    width: "100%",
-    maxWidth: 420,
-    alignSelf: "center",
-  },
-  branding: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  logoBadge: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  brandTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 4,
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  errorBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 10,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  footerText: {
-    fontSize: 13.5,
-  },
-  linkText: {
-    fontSize: 13.5,
-    fontWeight: "700",
-  },
-});

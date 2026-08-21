@@ -31,6 +31,10 @@ export function StoryViewerModal({ story, onClose }: StoryViewerModalProps) {
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
 
+  const progressStyle = useAnimatedStyle(() => ({
+    width: `${progress.value * 100}%`,
+  }));
+
   useEffect(() => {
     if (story) {
       progress.value = 0;
@@ -47,10 +51,6 @@ export function StoryViewerModal({ story, onClose }: StoryViewerModalProps) {
   }, [story]);
 
   if (!story) return null;
-
-  const progressStyle = useAnimatedStyle(() => ({
-    width: `${progress.value * 100}%`,
-  }));
 
   return (
     <Modal

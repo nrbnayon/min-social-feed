@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   ScrollView,
   Pressable,
-  StyleSheet,
+  Image,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -14,20 +16,26 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "@/store/auth.store";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Gradients } from "@/constants/theme";
-import { MessageSquare, Sparkles } from "lucide-react-native";
+import {
+  Sparkles,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+} from "lucide-react-native";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const { login, loginDemo } = useAuth();
   const showToast = useToastStore((s) => s.showToast);
 
   const [email, setEmail] = useState("jordan@example.com");
   const [password, setPassword] = useState("password123");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
@@ -47,148 +55,170 @@ export default function LoginScreen() {
       showToast("Welcome back! 👋", "👋");
       router.replace("/(protected)");
     } catch (e: any) {
-      setError(e?.message || "Invalid credentials. Please try again.");
+      setError(e?.message || "Invalid email or password.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDemoLogin = async () => {
-    setLoading(true);
+    setDemoLoading(true);
     try {
       await loginDemo();
       showToast("Signed in as Jordan Ellis ✨", "✨");
       router.replace("/(protected)");
     } finally {
-      setLoading(false);
+      setDemoLoading(false);
     }
   };
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={[
-        styles.screen,
-        { backgroundColor: isDark ? "#090A12" : "#F8FAFC" },
-      ]}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      className="flex-1 bg-background"
     >
       <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingTop: insets.top + 30, paddingBottom: insets.bottom + 30 },
-        ]}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: "center",
+          paddingTop: insets.top + 16,
+          paddingBottom: insets.bottom + 20,
+        }}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        className="flex-1 px-5"
       >
-        <View style={styles.container}>
-          {/* Logo Branding */}
-          <View style={styles.branding}>
-            <LinearGradient
-              colors={Gradients.brand}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.logoBadge}
-            >
-              <MessageSquare size={32} color="#FFFFFF" strokeWidth={2.5} />
-            </LinearGradient>
-            <Text style={[styles.brandTitle, { color: colors.text }]}>
+        <View className="w-full max-w-sm mx-auto justify-center">
+          {/* App Logo & Branding */}
+          <View className="items-center mb-6">
+            <Image
+              source={require("@/assets/images/app-logo.png")}
+              className="w-16 h-16 rounded-2xl mb-2"
+              resizeMode="contain"
+            />
+            <Text className="text-3xl font-extrabold text-foreground tracking-tight">
               MiniSocial
             </Text>
-            <Text style={[styles.brandTagline, { color: colors.text2 }]}>
+            <Text className="text-sm font-medium text-textSecondary mt-1">
               Connect • Share • Discover
             </Text>
           </View>
 
-          {/* Card Form */}
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.cardTitle, { color: colors.text }]}>
+          {/* Form Card */}
+          <View className="bg-surface rounded-3xl p-6 border border-border shadow-2xl mb-6">
+            <Text className="text-2xl font-bold text-foreground tracking-tight">
               Welcome back
             </Text>
-            <Text style={[styles.cardSubtitle, { color: colors.text2 }]}>
-              Sign in to continue to your feed
+            <Text className="text-sm text-textSecondary mt-1 mb-5">
+              Sign in to continue to your social feed
             </Text>
 
+            {/* Error Message */}
             {error ? (
-              <View
-                style={[
-                  styles.errorBox,
-                  {
-                    backgroundColor: isDark
-                      ? "rgba(236, 72, 153, 0.12)"
-                      : "rgba(236, 72, 153, 0.08)",
-                    borderColor: isDark
-                      ? "rgba(236, 72, 153, 0.3)"
-                      : "rgba(236, 72, 153, 0.2)",
-                  },
-                ]}
-              >
-                <Text style={[styles.errorText, { color: colors.pink }]}>
+              <View className="bg-pink/10 border border-pink/30 rounded-xl p-3 mb-4">
+                <Text className="text-xs font-semibold text-pink text-center">
                   {error}
                 </Text>
               </View>
             ) : null}
 
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
+            {/* Email Field */}
+            <View className="mb-4">
+              <Text className="text-xs font-semibold text-textSecondary mb-2">
+                Email Address
+              </Text>
+              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+                <Mail size={18} color={colors.text3} />
+                <TextInput
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  placeholderTextColor={colors.text3}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                />
+              </View>
+            </View>
 
-            <Input
-              label="Password"
-              placeholder="••••••••"
-              value={password}
-              onChangeText={setPassword}
-              isPassword
-            />
+            {/* Password Field */}
+            <View className="mb-6">
+              <Text className="text-xs font-semibold text-textSecondary mb-2">
+                Password
+              </Text>
+              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+                <Lock size={18} color={colors.text3} />
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={colors.text3}
+                  secureTextEntry={!showPassword}
+                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                />
+                <Pressable
+                  onPress={() => setShowPassword((s) => !s)}
+                  className="p-1"
+                  hitSlop={8}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} color={colors.text3} />
+                  ) : (
+                    <Eye size={18} color={colors.text3} />
+                  )}
+                </Pressable>
+              </View>
+            </View>
 
-            <Button
-              variant="gradient"
-              size="lg"
-              loading={loading}
+            {/* Submit Button */}
+            <Pressable
               onPress={handleLogin}
-              style={{ marginTop: 8 }}
+              disabled={loading || demoLoading}
+              className="w-full rounded-xl overflow-hidden active:opacity-90 active:scale-[0.99]"
             >
-              Sign In
-            </Button>
+              <LinearGradient
+                colors={Gradients.brand}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                className="h-12 items-center justify-center px-4"
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text className="text-white font-bold text-base">
+                    Sign In
+                  </Text>
+                )}
+              </LinearGradient>
+            </Pressable>
 
-            {/* Quick Demo Button */}
+            {/* Demo Quick Login */}
             <Pressable
               onPress={handleDemoLogin}
-              style={({ pressed }) => [
-                styles.demoBtn,
-                {
-                  backgroundColor: colors.surface2,
-                  borderColor: colors.borderStrong,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
+              disabled={loading || demoLoading}
+              className="flex-row items-center justify-center gap-2 h-12 rounded-xl bg-surface2 border border-border mt-3 active:opacity-80"
             >
-              <Sparkles size={16} color={colors.brand2} />
-              <Text style={[styles.demoBtnText, { color: colors.text }]}>
-                Quick Demo Account
-              </Text>
+              {demoLoading ? (
+                <ActivityIndicator color={colors.brand2} size="small" />
+              ) : (
+                <>
+                  <Sparkles size={16} color={colors.brand2} />
+                  <Text className="text-sm font-semibold text-foreground">
+                    Try Demo Account
+                  </Text>
+                </>
+              )}
             </Pressable>
           </View>
 
           {/* Footer Link */}
-          <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: colors.text2 }]}>
-              Don't have an account?{" "}
+          <View className="flex-row justify-center items-center gap-1">
+            <Text className="text-sm text-textSecondary">
+              Don't have an account?
             </Text>
             <Link href="/(auth)/sign-up" asChild>
-              <Pressable>
-                <Text style={[styles.linkText, { color: colors.brand2 }]}>
+              <Pressable className="py-1 px-1">
+                <Text className="text-sm font-bold text-brand2">
                   Sign up
                 </Text>
               </Pressable>
@@ -199,104 +229,3 @@ export default function LoginScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  container: {
-    width: "100%",
-    maxWidth: 420,
-    alignSelf: "center",
-  },
-  branding: {
-    alignItems: "center",
-    marginBottom: 24,
-  },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  brandTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.4,
-  },
-  brandTagline: {
-    fontSize: 13,
-    fontWeight: "500",
-    marginTop: 4,
-  },
-  card: {
-    borderRadius: 24,
-    borderWidth: 1,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 4,
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    letterSpacing: -0.3,
-  },
-  cardSubtitle: {
-    fontSize: 13,
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  errorBox: {
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 10,
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  demoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    height: 44,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginTop: 12,
-  },
-  demoBtnText: {
-    fontSize: 13.5,
-    fontWeight: "600",
-  },
-  footerRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  footerText: {
-    fontSize: 13.5,
-  },
-  linkText: {
-    fontSize: 13.5,
-    fontWeight: "700",
-  },
-});
