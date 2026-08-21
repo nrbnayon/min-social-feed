@@ -1,19 +1,17 @@
 import React from "react";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Pressable, Text, View, StyleSheet, Platform } from "react-native";
+import { Pressable, Text, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
-import { useAuth } from "@/store/auth.store";
-import { Avatar } from "./Avatar";
 import { Gradients } from "@/constants/theme";
 import {
   Home,
   Search,
   Plus,
   Bell,
-  User as UserIcon,
+  Settings,
 } from "lucide-react-native";
 
 export function CustomTabBar({
@@ -25,7 +23,6 @@ export function CustomTabBar({
   const { colors, isDark } = useAppTheme();
   const notifications = usePostsStore((s) => s.notifications);
   const unreadCount = notifications.filter((n) => !n.read).length;
-  const user = useAuth((s) => s.user);
 
   const currentRoute = state.routes[state.index];
   const { options } = descriptors[currentRoute.key];
@@ -34,13 +31,13 @@ export function CustomTabBar({
     return null;
   }
 
-  // Filter out any hidden screens
+  // 5 Tabs with Center Create FAB & Settings Tab
   const tabs = [
     { name: "index", label: "Home", icon: Home },
     { name: "explore", label: "Explore", icon: Search },
     { name: "create-post", label: "Create", isFab: true },
     { name: "notifications", label: "Alerts", icon: Bell, badge: unreadCount },
-    { name: "profile", label: "Profile", icon: UserIcon, isProfile: true },
+    { name: "setting", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -60,19 +57,14 @@ export function CustomTabBar({
           const isFocused = state.index === routeIndex;
 
           const onPress = () => {
-            if (routeIndex !== -1) {
-              const route = state.routes[routeIndex];
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
+            const event = navigation.emit({
+              type: "tabPress",
+              target: state.routes[routeIndex]?.key,
+              canPreventDefault: true,
+            });
 
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            } else {
-              navigation.navigate(tab.name as never);
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(tab.name);
             }
           };
 
@@ -118,22 +110,11 @@ export function CustomTabBar({
               style={styles.tabItem}
             >
               <View style={styles.iconWrapper}>
-                {tab.isProfile && user ? (
-                  <View
-                    style={[
-                      styles.profileAvatarBorder,
-                      isFocused && { borderColor: colors.brand, borderWidth: 2 },
-                    ]}
-                  >
-                    <Avatar src={user.avatar} size={24} name={user.name} />
-                  </View>
-                ) : (
-                  <IconComponent
-                    size={22}
-                    color={isFocused ? activeColor : inactiveColor}
-                    strokeWidth={isFocused ? 2.5 : 2}
-                  />
-                )}
+                <IconComponent
+                  size={22}
+                  color={isFocused ? activeColor : inactiveColor}
+                  strokeWidth={isFocused ? 2.5 : 2}
+                />
 
                 {Boolean(tab.badge && tab.badge > 0) && (
                   <View style={[styles.badge, { backgroundColor: colors.pink }]}>
@@ -255,8 +236,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  profileAvatarBorder: {
-    borderRadius: 14,
-    padding: 1,
-  },
 });
+
+export default CustomTabBar;

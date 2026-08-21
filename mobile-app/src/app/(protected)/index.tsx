@@ -7,10 +7,11 @@ import {
   Image,
   RefreshControl,
   Platform,
-  ActivityIndicator,
+  ActivityIndicator
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import type { Post } from "@/types";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
@@ -20,11 +21,14 @@ import { CommentSheet } from "@/components/comments/CommentSheet";
 import { ShareModal } from "@/components/feed/ShareModal";
 import { Avatar } from "@/components/Shared/Avatar";
 import { Input } from "@/components/ui/input";
+import { Gradients } from "@/constants/theme";
+import { appShadow } from "@/lib/utils";
 import {
   Bell,
   Search,
   SearchX,
   CheckCircle2,
+  SquarePen,
 } from "lucide-react-native";
 
 const PAGE_SIZE = 5;
@@ -112,89 +116,139 @@ export default function FeedScreen() {
     }, 350);
   };
 
-  const renderHeader = () => (
-    <View className="pt-1">
-      {/* 1. Search Bar right after Header */}
-      <Input
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        placeholder="Search posts or users..."
-        leftIcon={<Search size={18} color={colors.text3} />}
-        clearable
-        onClear={() => setSearchQuery("")}
-        inputHeight={44}
-        containerClassName="px-4 pt-2 mb-2"
-      />
+  // Scrollable Header that scrolls naturally with the feed
+  const listHeader = useMemo(
+    () => (
+      <View className="pt-2">
+        {/* 1. Search Bar */}
+        <Input
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search posts or users..."
+          leftIcon={<Search size={18} color={colors.text3} />}
+          clearable
+          onClear={() => setSearchQuery("")}
+          inputHeight={44}
+          containerClassName="px-4 mb-2"
+        />
 
-      {/* 2. Small Left-Aligned Text Format Tabs: For You / Following */}
-      <View className="px-5 mb-3 flex-row items-center gap-6">
-        {/* For you */}
+        {/* 2. Small Left-Aligned Text Format Tabs: For You / Following */}
+        <View className="px-5 mb-2.5 flex-row items-center gap-6">
+          {/* For you */}
+          <TouchableOpacity
+            onPress={() => setActiveTab("forYou")}
+            activeOpacity={0.7}
+            className="py-1 items-center"
+          >
+            <Text
+              style={{
+                color:
+                  activeTab === "forYou"
+                    ? isDark
+                      ? "#FFFFFF"
+                      : colors.text
+                    : colors.text3,
+                fontSize: 13.5,
+                fontWeight: activeTab === "forYou" ? "800" : "500",
+              }}
+            >
+              For you
+            </Text>
+            {activeTab === "forYou" && (
+              <View
+                style={{
+                  backgroundColor: colors.brand,
+                  height: 2.5,
+                  borderRadius: 2,
+                  marginTop: 3,
+                  width: "100%",
+                }}
+              />
+            )}
+          </TouchableOpacity>
+
+          {/* Following */}
+          <TouchableOpacity
+            onPress={() => setActiveTab("following")}
+            activeOpacity={0.7}
+            className="py-1 items-center"
+          >
+            <Text
+              style={{
+                color:
+                  activeTab === "following"
+                    ? isDark
+                      ? "#FFFFFF"
+                      : colors.text
+                    : colors.text3,
+                fontSize: 13.5,
+                fontWeight: activeTab === "following" ? "800" : "500",
+              }}
+            >
+              Following
+            </Text>
+            {activeTab === "following" && (
+              <View
+                style={{
+                  backgroundColor: colors.brand,
+                  height: 2.5,
+                  borderRadius: 2,
+                  marginTop: 3,
+                  width: "100%",
+                }}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* 3. Quick Create Post Entry Card */}
         <TouchableOpacity
-          onPress={() => setActiveTab("forYou")}
-          activeOpacity={0.7}
-          className="py-1 items-center"
+          onPress={() => router.push("/(protected)/create-post" as any)}
+          activeOpacity={0.85}
+          style={{
+            backgroundColor: colors.surface,
+            borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
+          }}
+          className={`mx-4 mb-2.5 p-3 rounded-2xl border flex-row items-center justify-between ${appShadow}`}
         >
-          <Text
+          <View className="flex-row items-center flex-1 mr-3">
+            <Avatar
+              src={currentUser?.avatar}
+              size={38}
+              gradientBorder={true}
+              name={currentUser?.name || "User"}
+            />
+            <Text
+              style={{ color: colors.text3 }}
+              className="text-xs font-medium ml-3 flex-1"
+              numberOfLines={1}
+            >
+              What's on your mind, {currentUser?.name?.split(" ")[0] || "there"}?
+            </Text>
+          </View>
+
+          <LinearGradient
+            colors={Gradients.brand}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={{
-              color:
-                activeTab === "forYou"
-                  ? isDark
-                    ? "#FFFFFF"
-                    : colors.text
-                  : colors.text3,
-              fontSize: 13.5,
-              fontWeight: activeTab === "forYou" ? "800" : "500",
+              paddingHorizontal: 14,
+              paddingVertical: 7.5,
+              borderRadius: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 5,
             }}
           >
-            For you
-          </Text>
-          {activeTab === "forYou" && (
-            <View
-              style={{
-                backgroundColor: colors.brand,
-                height: 2.5,
-                borderRadius: 2,
-                marginTop: 3,
-                width: "100%",
-              }}
-            />
-          )}
-        </TouchableOpacity>
-
-        {/* Following */}
-        <TouchableOpacity
-          onPress={() => setActiveTab("following")}
-          activeOpacity={0.7}
-          className="py-1 items-center"
-        >
-          <Text
-            style={{
-              color:
-                activeTab === "following"
-                  ? isDark
-                    ? "#FFFFFF"
-                    : colors.text
-                  : colors.text3,
-              fontSize: 13.5,
-              fontWeight: activeTab === "following" ? "800" : "500",
-            }}
-          >
-            Following
-          </Text>
-          {activeTab === "following" && (
-            <View
-              style={{
-                backgroundColor: colors.brand,
-                height: 2.5,
-                borderRadius: 2,
-                marginTop: 3,
-                width: "100%",
-              }}
-            />
-          )}
+            <Text style={{ color: "#FFFFFF", fontSize: 12.5, fontWeight: "700" }}>
+              Post
+            </Text>
+            <SquarePen size={13} color="#FFFFFF" />
+          </LinearGradient>
         </TouchableOpacity>
       </View>
-    </View>
+    ),
+    [searchQuery, activeTab, colors, isDark, currentUser]
   );
 
   return (
@@ -204,7 +258,7 @@ export default function FeedScreen() {
         backgroundColor: colors.background,
       }}
     >
-      {/* 🌟 Top Navigation Header */}
+      {/* 🌟 1. Top Navigation Header */}
       <View
         style={{
           paddingTop: insets.top + (Platform.OS === "ios" ? 6 : 10),
@@ -273,7 +327,9 @@ export default function FeedScreen() {
 
           {/* Profile Avatar Icon */}
           <TouchableOpacity
-            onPress={() => router.push("/(protected)/profile")}
+            onPress={() =>
+              router.push(`/(protected)/user/${currentUser?.id || "u0"}` as any)
+            }
             activeOpacity={0.7}
           >
             <Avatar
@@ -281,16 +337,19 @@ export default function FeedScreen() {
               size={34}
               gradientBorder={true}
               name={currentUser?.name || "User"}
+              onPress={() =>
+                router.push(`/(protected)/user/${currentUser?.id || "u0"}` as any)
+              }
             />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* 📜 Feed Posts List with Pull-to-Refresh & Infinite Scroll */}
+      {/* 📜 Feed Posts List with Natural Scrollable Header, Pull-to-Refresh & Infinite Scroll */}
       <FlatList
         data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={listHeader}
         renderItem={({ item }) => (
           <PostCard
             post={item}
@@ -301,6 +360,8 @@ export default function FeedScreen() {
         contentContainerStyle={{
           paddingBottom: insets.bottom + 80,
         }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.4}

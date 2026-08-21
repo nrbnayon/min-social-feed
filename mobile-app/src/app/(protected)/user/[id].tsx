@@ -9,7 +9,7 @@ import {
   Platform,
   Share as NativeShare,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useLocalSearchParams, router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import type { User, Post } from "@/types";
@@ -34,6 +34,7 @@ import {
   BadgeCheck,
   UserPlus,
   UserCheck,
+  Settings,
 } from "lucide-react-native";
 
 export default function UserProfileScreen() {
@@ -220,16 +221,17 @@ export default function UserProfileScreen() {
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              onPress={() => router.push("/(protected)/profile")}
+              onPress={() => router.push("/(protected)/setting" as Href)}
               activeOpacity={0.85}
               style={{
                 backgroundColor: colors.surface2,
                 borderColor: colors.border,
               }}
-              className={`px-4 py-2.5 rounded-full border items-center ${appShadow}`}
+              className={`px-4 py-2.5 rounded-full border flex-row items-center gap-1.5 ${appShadow}`}
             >
+              <Settings size={14} color={colors.text2} />
               <Text style={{ color: colors.text }} className="text-xs font-bold">
-                My Profile
+                Settings
               </Text>
             </TouchableOpacity>
           )}

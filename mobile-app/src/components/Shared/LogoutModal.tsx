@@ -1,7 +1,8 @@
 import React from "react";
-import { Modal, View, Text, Pressable, StyleSheet } from "react-native";
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from "react-native";
 import { useAppTheme } from "@/context/ThemeContext";
 import { LogOut } from "lucide-react-native";
+import { appShadow } from "@/lib/utils";
 
 interface LogoutModalProps {
   visible: boolean;
@@ -27,61 +28,66 @@ export function LogoutModal({ visible, onCancel, onConfirm }: LogoutModalProps) 
             styles.dialog,
             {
               backgroundColor: colors.surface,
-              borderColor: colors.border,
+              borderColor: isDark ? "rgba(255, 255, 255, 0.12)" : colors.border,
             },
           ]}
+          className={appShadow}
         >
+          {/* Red Alert Icon */}
           <View
-            style={[
-              styles.iconWrapper,
-              {
-                backgroundColor: isDark
-                  ? "rgba(236, 72, 153, 0.15)"
-                  : "rgba(236, 72, 153, 0.1)",
-              },
-            ]}
+            style={{
+              backgroundColor: isDark ? "rgba(239, 68, 68, 0.14)" : "rgba(239, 68, 68, 0.1)",
+              borderColor: isDark ? "rgba(239, 68, 68, 0.25)" : "rgba(239, 68, 68, 0.18)",
+            }}
+            className="w-14 h-14 rounded-2xl border items-center justify-center mb-4"
           >
-            <LogOut size={26} color={colors.pink} />
+            <LogOut size={26} color="#EF4444" />
           </View>
 
-          <Text style={[styles.title, { color: colors.text }]}>
-            Sign Out?
+          {/* Title & Description */}
+          <Text
+            style={{ color: colors.text }}
+            className="text-lg font-black text-center mb-1.5"
+          >
+            Sign Out of MiniSocial?
           </Text>
-          <Text style={[styles.description, { color: colors.text2 }]}>
-            Are you sure you want to sign out of your MiniSocial account?
+          <Text
+            style={{ color: colors.text2 }}
+            className="text-xs text-center leading-5 mb-6 px-2"
+          >
+            Are you sure you want to sign out? You will need to log back in to post and interact.
           </Text>
 
-          <View style={styles.buttonRow}>
-            <Pressable
+          {/* Action Buttons Row */}
+          <View className="flex-row items-center gap-3 w-full">
+            {/* Cancel Button */}
+            <TouchableOpacity
               onPress={onCancel}
-              style={[
-                styles.btn,
-                styles.cancelBtn,
-                {
-                  backgroundColor: colors.surface2,
-                  borderColor: colors.border,
-                },
-              ]}
+              activeOpacity={0.7}
+              style={{
+                backgroundColor: colors.surface2,
+                borderColor: colors.border,
+              }}
+              className="flex-1 py-3 rounded-xl border items-center justify-center"
             >
-              <Text style={[styles.cancelText, { color: colors.text }]}>
+              <Text style={{ color: colors.text }} className="text-xs font-bold">
                 Cancel
               </Text>
-            </Pressable>
+            </TouchableOpacity>
 
-            <Pressable
+            {/* Sign Out Button */}
+            <TouchableOpacity
               onPress={onConfirm}
-              style={[
-                styles.btn,
-                styles.confirmBtn,
-                {
-                  backgroundColor: colors.pink,
-                },
-              ]}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: "#EF4444",
+              }}
+              className="flex-1 py-3 rounded-xl items-center justify-center shadow-sm"
             >
-              <Text style={styles.confirmText}>
+              <Text className="text-xs font-bold text-white">
                 Sign Out
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -92,7 +98,7 @@ export function LogoutModal({ visible, onCancel, onConfirm }: LogoutModalProps) 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
@@ -103,66 +109,10 @@ const styles = StyleSheet.create({
   dialog: {
     width: "100%",
     maxWidth: 340,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     padding: 22,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
-  },
-  iconWrapper: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  description: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-  },
-  btn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelBtn: {
-    borderWidth: 1,
-  },
-  cancelText: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  confirmBtn: {
-    shadowColor: "#EC4899",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  confirmText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
   },
 });
 

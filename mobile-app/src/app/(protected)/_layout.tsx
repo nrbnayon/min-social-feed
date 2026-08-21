@@ -20,7 +20,7 @@ export default function ProtectedLayout() {
       <Tabs.Screen name="explore" options={{ title: "Explore" }} />
       <Tabs.Screen name="create-post" options={{ title: "Create" }} />
       <Tabs.Screen name="notifications" options={{ title: "Alerts" }} />
-      <Tabs.Screen name="profile" options={{ title: "Profile" }} />
+      <Tabs.Screen name="setting" options={{ title: "Settings" }} />
 
       {/* Hidden sub-screens */}
       <Tabs.Screen

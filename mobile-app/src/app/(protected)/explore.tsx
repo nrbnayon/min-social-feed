@@ -3,15 +3,14 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
   RefreshControl,
-  ActivityIndicator,
   Platform,
+  ActivityIndicator,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import type { User, Post } from "@/types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
 import { useToastStore } from "@/store/useToastStore";
@@ -41,45 +40,41 @@ export default function ExploreScreen() {
 
   const [query, setQuery] = useState("");
   const [followedIds, setFollowedIds] = useState<string[]>([]);
+  const [commentPost, setCommentPost] = useState<any>(null);
+  const [sharePost, setSharePost] = useState<any>(null);
 
-  // Infinite scroll and pull-to-refresh state
+  // Pagination state (infinite scroll)
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Modals state
-  const [commentPost, setCommentPost] = useState<Post | null>(null);
-  const [sharePost, setSharePost] = useState<Post | null>(null);
-
-  // Reset pagination on query change
+  // Reset page whenever search query changes
   useEffect(() => {
     setPage(1);
   }, [query]);
 
-  const handleFollowToggle = (user: User) => {
-    const isNowFollowing = !followedIds.includes(user.id);
-    setFollowedIds((prev) =>
-      isNowFollowing ? [...prev, user.id] : prev.filter((id) => id !== user.id)
-    );
-    showToast(
-      isNowFollowing ? `Following ${user.name} 🎉` : `Unfollowed ${user.name}`,
-      isNowFollowing ? "✓" : "👋"
-    );
+  const toggleFollow = (userId: string, name: string) => {
+    if (followedIds.includes(userId)) {
+      setFollowedIds((prev) => prev.filter((id) => id !== userId));
+      showToast(`Unfollowed @${name}`, "👋");
+    } else {
+      setFollowedIds((prev) => [...prev, userId]);
+      showToast(`Followed @${name}`, "✨");
+    }
   };
 
   const filteredPosts = useMemo(() => {
+    if (!query.trim()) return posts;
     const q = query.toLowerCase().trim().replace(/^@/, "");
-    if (!q) return posts;
-
     return posts.filter((p) => {
-      const content = (p.content || "").toLowerCase();
-      const name = (p.name || "").toLowerCase();
-      const username = (p.username || "").toLowerCase().replace(/^@/, "");
-      return content.includes(q) || name.includes(q) || username.includes(q);
+      const u = (p.username || p.author?.username || "").toLowerCase();
+      const n = (p.name || "").toLowerCase();
+      const c = (p.content || "").toLowerCase();
+      return u.includes(q) || n.includes(q) || c.includes(q);
     });
   }, [posts, query]);
 
-  // Paginated visible posts
+  // Paginated visible posts for infinite scroll
   const visiblePosts = useMemo(() => {
     return filteredPosts.slice(0, page * PAGE_SIZE);
   }, [filteredPosts, page]);
@@ -105,127 +100,126 @@ export default function ExploreScreen() {
     }, 350);
   };
 
-  const renderHeader = () => (
-    <View className="pt-2">
-      {/* 1. Reusable Search Input */}
-      <Input
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Search creators, handles, or posts..."
-        leftIcon={<Search size={18} color={colors.text3} />}
-        clearable
-        onClear={() => setQuery("")}
-        inputHeight={44}
-        containerClassName="px-4 mb-3"
-      />
+  // Memoized scrollable header: Search bar + Suggested creators carousel
+  const listHeader = useMemo(
+    () => (
+      <View className="pt-2">
+        {/* 1. Reusable Search Input */}
+        <Input
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search creators, handles, or posts..."
+          leftIcon={<Search size={18} color={colors.text3} />}
+          clearable
+          onClear={() => setQuery("")}
+          inputHeight={44}
+          containerClassName="px-4 mb-3"
+        />
 
-      {/* 2. Suggested Creators Section */}
-      <View className="mb-4">
-        <View className="px-4 mb-2.5 flex-row items-center justify-between">
-          <View className="flex-row items-center gap-1.5">
-            <Users size={16} color={colors.brand2} />
+        {/* 2. Suggested Creators Section */}
+        <View className="mb-4">
+          <View className="px-4 mb-2.5 flex-row items-center justify-between">
+            <View className="flex-row items-center gap-1.5">
+              <Users size={16} color={colors.brand2} />
+              <Text
+                style={{ color: colors.text }}
+                className="text-sm font-bold tracking-tight"
+              >
+                Suggested Creators
+              </Text>
+            </View>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingHorizontal: 16,
+              gap: 10,
+              paddingVertical: 6,
+            }}
+          >
+            {SUGGESTED_USERS.map((user) => {
+              const isFollowing = followedIds.includes(user.id);
+              return (
+                <TouchableOpacity
+                  key={user.id}
+                  onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
+                  activeOpacity={0.85}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
+                    width: 148,
+                  }}
+                  className={`p-3.5 rounded-2xl border items-center ${appShadow}`}
+                >
+                  <Avatar
+                    src={user.avatar}
+                    size={50}
+                    gradientBorder={true}
+                    name={user.name}
+                    onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
+                  />
+
+                  <View className="flex-row items-center gap-1 mt-2 mb-0.5">
+                    <Text
+                      style={{ color: colors.text }}
+                      className="text-xs font-bold text-center"
+                      numberOfLines={1}
+                    >
+                      {user.name}
+                    </Text>
+                    {user.verified && (
+                      <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
+                    )}
+                  </View>
+
+                  <Text
+                    style={{ color: colors.text3 }}
+                    className="text-[11px] text-center mb-3"
+                    numberOfLines={1}
+                  >
+                    @{user.username}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      toggleFollow(user.id, user.username);
+                    }}
+                    activeOpacity={0.8}
+                    style={{
+                      backgroundColor: isFollowing ? colors.surface2 : colors.brand,
+                      borderColor: isFollowing ? colors.border : colors.brand,
+                    }}
+                    className="w-full py-1.5 rounded-full border items-center justify-center"
+                  >
+                    <Text
+                      style={{ color: isFollowing ? colors.text2 : "#FFFFFF" }}
+                      className="text-[11px] font-bold"
+                    >
+                      {isFollowing ? "Following" : "Follow"}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Trending Posts Section Title */}
+          <View className="px-4 mt-3 mb-1.5 flex-row items-center gap-1.5">
+            <TrendingUp size={16} color={colors.pink} />
             <Text
               style={{ color: colors.text }}
               className="text-sm font-bold tracking-tight"
             >
-              Suggested Creators
+              {query ? `Search Results (${filteredPosts.length})` : "Trending Feed"}
             </Text>
           </View>
         </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingHorizontal: 16,
-            gap: 10,
-            paddingVertical: 6,
-          }}
-        >
-          {SUGGESTED_USERS.map((user) => {
-            const isFollowing = followedIds.includes(user.id);
-            return (
-              <TouchableOpacity
-                key={user.id}
-                onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor: colors.surface,
-                  borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
-                  width: 148,
-                }}
-                className={`p-3.5 rounded-2xl border items-center ${appShadow}`}
-              >
-                <Avatar
-                  src={user.avatar}
-                  size={50}
-                  gradientBorder={true}
-                  name={user.name}
-                  onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
-                />
-
-                <View className="flex-row items-center gap-1 mt-2 mb-0.5">
-                  <Text
-                    style={{ color: colors.text }}
-                    className="text-xs font-bold text-center"
-                    numberOfLines={1}
-                  >
-                    {user.name}
-                  </Text>
-                  {user.verified && (
-                    <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
-                  )}
-                </View>
-
-                <Text
-                  style={{ color: colors.text3 }}
-                  className="text-[11px] text-center mb-3"
-                  numberOfLines={1}
-                >
-                  @{user.username}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleFollowToggle(user);
-                  }}
-                  activeOpacity={0.8}
-                  style={{
-                    backgroundColor: isFollowing ? colors.surface2 : colors.brand,
-                    borderColor: isFollowing ? colors.border : colors.brand,
-                  }}
-                  className="w-full py-1.5 rounded-lg border items-center justify-center"
-                >
-                  <Text
-                    style={{
-                      color: isFollowing ? colors.text2 : "#FFFFFF",
-                      fontSize: 11.5,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {isFollowing ? "Following" : "Follow"}
-                  </Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
       </View>
-
-      {/* 3. Feed Header Section */}
-      <View className="px-4 mb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-1.5">
-          <TrendingUp size={16} color={colors.brand2} />
-          <Text
-            style={{ color: colors.text }}
-            className="text-sm font-bold tracking-tight"
-          >
-            {query ? `Search Results (${filteredPosts.length})` : "Recent Community Posts"}
-          </Text>
-        </View>
-      </View>
-    </View>
+    ),
+    [query, followedIds, colors, isDark, filteredPosts.length]
   );
 
   return (
@@ -235,7 +229,7 @@ export default function ExploreScreen() {
         backgroundColor: colors.background,
       }}
     >
-      {/* 🌟 Top Header */}
+      {/* 🌟 1. Top Header */}
       <View
         style={{
           paddingTop: insets.top + (Platform.OS === "ios" ? 6 : 10),
@@ -255,11 +249,11 @@ export default function ExploreScreen() {
         </Text>
       </View>
 
-      {/* 📜 Feed List with Pull-to-Refresh & Infinite Scroll */}
+      {/* 📜 2. Feed List with Natural Scrollable Header, Pull-to-Refresh & Infinite Scroll */}
       <FlatList
         data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={listHeader}
         renderItem={({ item }) => (
           <PostCard
             post={item}
@@ -270,6 +264,8 @@ export default function ExploreScreen() {
         contentContainerStyle={{
           paddingBottom: insets.bottom + 80,
         }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.4}
@@ -324,7 +320,9 @@ export default function ExploreScreen() {
                 style={{ color: colors.text3 }}
                 className="text-sm text-center mb-4"
               >
-                No results found for "{query}". Try a different keyword or creator.
+                {query
+                  ? `No posts matching "${query}".`
+                  : "No posts available in this feed yet."}
               </Text>
               {query.length > 0 && (
                 <TouchableOpacity
@@ -356,7 +354,7 @@ export default function ExploreScreen() {
         />
       )}
 
-      {/* 🔗 Share Modal */}
+      {/* 🔗 Share Sheet Modal */}
       {sharePost && (
         <ShareModal
           post={sharePost}
