@@ -1,0 +1,113 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Neutrals - Light Mode */
+    --background: 248 247 244;
+    --foreground: 28 28 28;
+
+    /* Brand & Secondary */
+    --primary: 15 118 110;
+    --brand: 15 118 110;
+    --secondary: 120 113 108;
+
+    --border-color: 68 64 60;
+    --input-border: 68 64 60;
+    --input-bg: 240 253 250;
+  }
+
+  .dark:root,
+  .dark {
+    /* Neutrals - Dark Mode */
+    --background: 13 13 13;
+    --foreground: 245 245 244;
+
+    /* Brand & Secondary */
+    --primary: 15 118 110;
+    --brand: 15 118 110;
+    --secondary: 120 113 108;
+
+    --border-color: 68 64 60;
+    --input-border: 68 64 60;
+    --input-bg: 28 25 23;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: rgb(var(--background));
+    color: rgb(var(--foreground));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .section-pad {
+    padding-top: 6.25rem;
+    padding-bottom: 6.25rem;
+  }
+
+  .content-shell {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 77.5rem;
+  }
+
+  .content-shell-wide {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 90rem;
+  }
+
+  .content-shell-narrow {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 58.75rem;
+  }
+
+  .hero-content {
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    max-width: 50.5rem;
+  }
+
+  .text-body {
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: -0.3px;
+    line-height: 1.5;
+  }
+
+  .text-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    line-height: 1.3;
+  }
+
+  .text-heading {
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    line-height: 1.3;
+  }
+}
