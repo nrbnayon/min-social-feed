@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -17,10 +16,9 @@ import { useAuth } from "@/store/auth.store";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
 import { Gradients } from "@/constants/theme";
+import { Input } from "@/components/ui/input";
 import {
   Sparkles,
-  Eye,
-  EyeOff,
   Lock,
   Mail,
 } from "lucide-react-native";
@@ -33,7 +31,6 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState("");
@@ -107,102 +104,35 @@ export default function LoginScreen() {
 
           {/* Error Message */}
           {error ? (
-            <View className="bg-pink/10 border border-pink/30 rounded-md p-3.5 mb-5">
+            <View className="bg-pink/10 border border-pink/30 rounded-lg p-3.5 mb-5">
               <Text className="text-sm font-semibold text-pink text-center">
                 {error}
               </Text>
             </View>
           ) : null}
 
-          {/* Form Fields */}
-          <View className="mb-6">
-            {/* Email Field */}
-            <View className="mb-4">
-              <Text className="text-sm font-semibold text-textSecondary mb-2 ml-1">
-                Email Address
-              </Text>
-              <View
-                style={{
-                  height: 50,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingHorizontal: 14,
-                }}
-                className="bg-surface border border-border rounded-lg focus:border-brand"
-              >
-                <Mail size={19} color={colors.text3} />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
-                  placeholderTextColor={colors.text3}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
+          {/* Form Fields using Reusable Input */}
+          <View className="mb-2">
+            <Input
+              label="Email Address"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
+              leftIcon={<Mail size={19} color={colors.text3} />}
+              containerClassName="mb-4"
+            />
 
-                  style={{
-                    flex: 1,
-                    marginLeft: 10,
-                    fontSize: 16,
-                    color: colors.text,
-                    paddingTop: 0,
-                    paddingBottom: 0,
-                    paddingVertical: 0,
-                    margin: 0,
-                    height: Platform.OS === "ios" ? 44 : "100%",
-                    textAlignVertical: "center",
-                  }}
-                />
-              </View>
-            </View>
-
-            {/* Password Field */}
-            <View className="mb-2">
-              <Text className="text-sm font-semibold text-textSecondary mb-2 ml-1">
-                Password
-              </Text>
-              <View
-                style={{
-                  height: 50,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  paddingHorizontal: 14,
-                }}
-                className="bg-surface border border-border rounded-lg focus:border-brand"
-              >
-                <Lock size={19} color={colors.text3} />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.text3}
-                  secureTextEntry={!showPassword}
-                  style={{
-                    flex: 1,
-                    marginLeft: 10,
-                    fontSize: 16,
-                    color: colors.text,
-                    paddingTop: 0,
-                    paddingBottom: 0,
-                    paddingVertical: 0,
-                    margin: 0,
-                    height: Platform.OS === "ios" ? 44 : "100%",
-                    textAlignVertical: "center",
-                  }}
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword((s) => !s)}
-                  activeOpacity={0.7}
-                  className="p-1"
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  {showPassword ? (
-                    <EyeOff size={19} color={colors.text3} />
-                  ) : (
-                    <Eye size={19} color={colors.text3} />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              isPassword
+              leftIcon={<Lock size={19} color={colors.text3} />}
+              containerClassName="mb-2"
+            />
           </View>
 
           {/* Sign In CTA Button */}

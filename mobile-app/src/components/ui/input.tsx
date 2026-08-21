@@ -3,18 +3,22 @@ import {
   View,
   Text,
   TextInput,
-  Pressable,
-  StyleSheet,
+  TouchableOpacity,
+  Platform,
   type TextInputProps,
 } from "react-native";
 import { useAppTheme } from "@/context/ThemeContext";
 import { Eye, EyeOff } from "lucide-react-native";
 
-interface InputProps extends TextInputProps {
+export interface InputProps extends TextInputProps {
   label?: string;
   hint?: string;
   error?: string;
   isPassword?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+  containerClassName?: string;
+  wrapperClassName?: string;
 }
 
 export function Input({
@@ -22,104 +26,106 @@ export function Input({
   hint,
   error,
   isPassword,
+  leftIcon,
+  rightIcon,
+  containerClassName = "mb-4",
+  wrapperClassName = "",
   style,
+  onFocus,
+  onBlur,
   ...props
 }: InputProps) {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
 
+  const getBorderColor = () => {
+    if (error) return colors.pink;
+    if (isFocused) return colors.brand;
+    return colors.border;
+  };
+
   return (
-    <View style={styles.container}>
-      {label && (
-        <Text style={[styles.label, { color: colors.text2 }]}>{label}</Text>
-      )}
+    <View className={`w-full ${containerClassName}`}>
+      {label ? (
+        <Text className="text-sm font-semibold text-textSecondary mb-2 ml-1">
+          {label}
+        </Text>
+      ) : null}
 
       <View
-        style={[
-          styles.inputWrapper,
-          {
-            backgroundColor: colors.surface2,
-            borderColor: error
-              ? colors.pink
-              : isFocused
-              ? colors.brand
-              : colors.borderStrong,
-          },
-        ]}
+        style={{
+          height: 50,
+          borderColor: getBorderColor(),
+          borderWidth: isFocused ? 1.5 : 1,
+        }}
+        className={`flex-row items-center px-3.5 bg-surface rounded-lg ${wrapperClassName}`}
       >
+        {leftIcon ? (
+          <View className="mr-2.5 items-center justify-center pointer-events-none">
+            {leftIcon}
+          </View>
+        ) : null}
+
         <TextInput
           placeholderTextColor={colors.text3}
           secureTextEntry={isPassword && !showPassword}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
+          onFocus={(e) => {
+            setIsFocused(true);
+            onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            onBlur?.(e);
+          }}
           style={[
-            styles.input,
-            { color: colors.text },
+            {
+              flex: 1,
+              fontSize: 16,
+              color: colors.text,
+              paddingTop: 0,
+              paddingBottom: 0,
+              paddingVertical: 0,
+              margin: 0,
+              height: Platform.OS === "ios" ? 44 : "100%",
+              textAlignVertical: "center",
+            },
             style,
           ]}
           {...props}
         />
 
-        {isPassword && (
-          <Pressable
+        {isPassword ? (
+          <TouchableOpacity
             onPress={() => setShowPassword((s) => !s)}
-            style={styles.eyeBtn}
-            hitSlop={10}
+            activeOpacity={0.7}
+            className="p-1 -mr-1"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {showPassword ? (
-              <EyeOff size={18} color={colors.text3} />
+              <EyeOff size={19} color={colors.text3} />
             ) : (
-              <Eye size={18} color={colors.text3} />
+              <Eye size={19} color={colors.text3} />
             )}
-          </Pressable>
-        )}
+          </TouchableOpacity>
+        ) : rightIcon ? (
+          <View className="ml-2 items-center justify-center">
+            {rightIcon}
+          </View>
+        ) : null}
       </View>
 
       {error ? (
-        <Text style={[styles.errorText, { color: colors.pink }]}>{error}</Text>
+        <Text className="text-xs font-semibold text-pink mt-1.5 ml-1">
+          {error}
+        </Text>
       ) : hint ? (
-        <Text style={[styles.hintText, { color: colors.text3 }]}>{hint}</Text>
+        <Text className="text-xs text-textSecondary mt-1.5 ml-1">
+          {hint}
+        </Text>
       ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: 16,
-    width: "100%",
-  },
-  label: {
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 6,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    height: 48,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14.5,
-    height: "100%",
-  },
-  eyeBtn: {
-    padding: 6,
-  },
-  errorText: {
-    fontSize: 11,
-    marginTop: 4,
-    fontWeight: "500",
-  },
-  hintText: {
-    fontSize: 11,
-    marginTop: 4,
-  },
-});
 
 export default Input;
