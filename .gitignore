@@ -9,3 +9,9 @@ GoogleService-Info.plist
 
 google-services.json
 GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
+*firebase-admin*.json
+*firebase-adminsdk*.json
+*.plist
+!Info.plist
