@@ -8,17 +8,12 @@ dist/
 build/
 
 *.log
-
 .DS_Store
-
 coverage/
 
 android/.gradle/
 android/build/
 ios/build/
-
-google-services.json
-GoogleService-Info.plist
 
 *.p8
 *.p12
@@ -26,3 +21,4 @@ GoogleService-Info.plist
 *.pem
 
 firebase-service-account.json
+*firebase-admin*.json

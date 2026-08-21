@@ -1,52 +1,26 @@
 {
   "cli": {
-    "version": ">= 16.28.0",
+    "version": ">= 12.0.0",
     "appVersionSource": "local"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview-apk": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
+      "node": "22.12.0"
     },
-    "production-aab": {
-      "android": {
-        "buildType": "app-bundle"
-      },
-      "ios": {
-        "buildConfiguration": "Release"
-      }
+    "preview": {
+      "distribution": "internal",
+      "node": "22.12.0"
     },
     "production-apk": {
       "android": {
         "buildType": "apk"
       },
-      "ios": {
-        "buildConfiguration": "Release"
-      }
+      "node": "22.12.0"
     },
     "production": {
-      "env": {
-        "EAS_BUILD_SKIP_LOCKFILE_CHECK": "1"
-      },
-      "android": {
-        "buildType": "apk"
-      },
-      "ios": {
-        "buildConfiguration": "Release"
-      }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": {
-        "appName": "mini-social-feed"
-      }
+      "node": "22.12.0"
     }
   }
 }
