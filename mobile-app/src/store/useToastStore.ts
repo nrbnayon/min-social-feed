@@ -1,3 +1,25 @@
 import { create } from "zustand";
-type ToastState = { visible: boolean; message: string; type: "success" | "error" | "info"; show: (message: string, type?: ToastState["type"]) => void; hide: () => void };
-export const useToastStore = create<ToastState>((set) => ({ visible: false, message: "", type: "info", show: (message, type = "info") => set({ visible: true, message, type }), hide: () => set({ visible: false, message: "" }) }));
+
+export interface ToastData {
+  message: string;
+  icon?: string;
+  type?: "success" | "error" | "info";
+  duration?: number;
+}
+
+interface ToastState {
+  toast: ToastData | null;
+  showToast: (message: string, icon?: string, type?: "success" | "error" | "info") => void;
+  hideToast: () => void;
+}
+
+export const useToastStore = create<ToastState>((set) => ({
+  toast: null,
+  showToast: (message, icon = "✓", type = "success") => {
+    set({ toast: { message, icon, type } });
+    setTimeout(() => {
+      set({ toast: null });
+    }, 2800);
+  },
+  hideToast: () => set({ toast: null }),
+}));

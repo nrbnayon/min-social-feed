@@ -4,7 +4,3 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-
-export function resolveMediaUrl(path: string) {
-  return path;
-}

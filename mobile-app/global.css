@@ -4,110 +4,59 @@
 
 @layer base {
   :root {
-    /* Neutrals - Light Mode */
-    --background: 248 247 244;
-    --foreground: 28 28 28;
+    /* Light Mode */
+    --background: 248 250 252;      /* #F8FAFC */
+    --bg2: 241 245 249;             /* #F1F5F9 */
+    --surface: 255 255 255;         /* #FFFFFF */
+    --surface2: 241 245 249;        /* #F1F5F9 */
+    --surface3: 226 232 240;        /* #E2E8F0 */
+    --border-color: 226 232 240;    /* #E2E8F0 */
+    --border-strong: 203 213 225;   /* #CBD5E1 */
+    --foreground: 15 23 42;         /* #0F172A */
+    --text: 15 23 42;               /* #0F172A */
+    --text2: 100 116 139;           /* #64748B */
+    --text3: 148 163 184;           /* #94A3B8 */
 
-    /* Brand & Secondary */
-    --primary: 15 118 110;
-    --brand: 15 118 110;
-    --secondary: 120 113 108;
+    --brand: 99 102 241;            /* #6366F1 */
+    --brand2: 129 140 248;          /* #818CF8 */
+    --primary: 99 102 241;          /* #6366F1 */
+    --pink: 236 72 153;             /* #EC4899 */
+    --green: 16 185 129;            /* #10B981 */
+    --yellow: 245 158 11;           /* #F59E0B */
 
-    --border-color: 68 64 60;
-    --input-border: 68 64 60;
-    --input-bg: 240 253 250;
+    --input-bg: 241 245 249;
+    --input-border: 226 232 240;
   }
 
   .dark:root,
   .dark {
-    /* Neutrals - Dark Mode */
-    --background: 13 13 13;
-    --foreground: 245 245 244;
+    /* Dark Mode */
+    --background: 9 10 18;          /* #090A12 */
+    --bg2: 15 17 26;                /* #0F111A */
+    --surface: 20 23 34;            /* #141722 */
+    --surface2: 27 32 49;           /* #1B2031 */
+    --surface3: 37 43 64;           /* #252B40 */
+    --border-color: 37 43 64;       /* #252B40 */
+    --border-strong: 51 60 88;      /* #333C58 */
+    --foreground: 240 242 250;      /* #F0F2FA */
+    --text: 240 242 250;            /* #F0F2FA */
+    --text2: 148 153 179;           /* #9499B3 */
+    --text3: 86 90 117;             /* #565A75 */
 
-    /* Brand & Secondary */
-    --primary: 15 118 110;
-    --brand: 15 118 110;
-    --secondary: 120 113 108;
+    --brand: 99 102 241;            /* #6366F1 */
+    --brand2: 129 140 248;          /* #818CF8 */
+    --primary: 99 102 241;          /* #6366F1 */
+    --pink: 236 72 153;             /* #EC4899 */
+    --green: 16 185 129;            /* #10B981 */
+    --yellow: 245 158 11;           /* #F59E0B */
 
-    --border-color: 68 64 60;
-    --input-border: 68 64 60;
-    --input-bg: 28 25 23;
+    --input-bg: 27 32 49;
+    --input-border: 37 43 64;
   }
 
   *,
   *::before,
   *::after {
     box-sizing: border-box;
-  }
-
-  html {
-    scroll-behavior: smooth;
-  }
-
-  body {
-    background-color: rgb(var(--background));
-    color: rgb(var(--foreground));
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-}
-
-@layer components {
-  .section-pad {
-    padding-top: 6.25rem;
-    padding-bottom: 6.25rem;
-  }
-
-  .content-shell {
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    max-width: 77.5rem;
-  }
-
-  .content-shell-wide {
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    max-width: 90rem;
-  }
-
-  .content-shell-narrow {
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    max-width: 58.75rem;
-  }
-
-  .hero-content {
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
-    max-width: 50.5rem;
-  }
-
-  .text-body {
-    font-size: 1rem;
-    font-weight: 400;
-    letter-spacing: -0.3px;
-    line-height: 1.5;
-  }
-
-  .text-label {
-    font-size: 0.875rem;
-    font-weight: 600;
-    letter-spacing: -0.3px;
-    line-height: 1.3;
-  }
-
-  .text-heading {
-    font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: -0.3px;
-    line-height: 1.3;
   }
 }

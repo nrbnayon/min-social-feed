@@ -2,21 +2,28 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useColorScheme as useNativeWindColorScheme } from "nativewind";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Appearance, ColorSchemeName } from "react-native";
+import { Colors, ThemeColors } from "@/constants/theme";
 
 export type ThemeMode = "light" | "dark" | "system";
 
 interface ThemeContextValue {
   /** The effective active theme ("light" or "dark") */
   theme: "light" | "dark";
+  /** Whether the active theme is dark */
+  isDark: boolean;
+  /** Current active color palette object for inline styles / Lucide icons */
+  colors: ThemeColors;
   /** The user's chosen theme mode ("light", "dark", or "system") */
   mode: ThemeMode;
   /** Update the theme mode */
   setMode: (mode: ThemeMode) => Promise<void>;
+  /** Quickly toggle between light and dark */
+  toggleTheme: () => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const THEME_STORAGE_KEY = "todai_theme_mode";
+const THEME_STORAGE_KEY = "min_social_feed_theme_mode";
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { setColorScheme } = useNativeWindColorScheme();
@@ -24,9 +31,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [deviceColorScheme, setDeviceColorScheme] = useState<ColorSchemeName>(
     Appearance.getColorScheme()
   );
-  const [mode, setModeState] = useState<ThemeMode>("light");
+  // Default to dark mode first to match the sleek web experience
+  const [mode, setModeState] = useState<ThemeMode>("dark");
 
-  // Track device color scheme if user explicitly chooses "system" mode
   useEffect(() => {
     const subscription = Appearance.addChangeListener(({ colorScheme }) => {
       setDeviceColorScheme(colorScheme);
@@ -34,7 +41,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, []);
 
-  // Load persisted theme preference on mount (defaulting to "light")
+  // Load persisted theme preference on mount
   useEffect(() => {
     (async () => {
       try {
@@ -46,24 +53,24 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         ) {
           setModeState(savedMode);
         } else {
-          setModeState("light");
+          setModeState("dark");
         }
       } catch (e) {
         console.error("Failed to load theme mode", e);
-        setModeState("light");
+        setModeState("dark");
       }
     })();
   }, []);
 
-  // Calculate active effective theme ("light" or "dark") — default is ALWAYS "light"
+  // Calculate active effective theme
   const effectiveTheme: "light" | "dark" =
     mode === "system"
-      ? deviceColorScheme === "dark"
-        ? "dark"
-        : "light"
+      ? deviceColorScheme === "light"
+        ? "light"
+        : "dark"
       : mode;
 
-  // Sync NativeWind colorScheme strictly with effectiveTheme ("light" by default)
+  // Sync NativeWind colorScheme strictly with effectiveTheme
   useEffect(() => {
     setColorScheme(effectiveTheme);
   }, [mode, effectiveTheme, setColorScheme]);
@@ -77,8 +84,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const toggleTheme = async () => {
+    const nextMode = effectiveTheme === "dark" ? "light" : "dark";
+    await setMode(nextMode);
+  };
+
+  const colors = Colors[effectiveTheme];
+  const isDark = effectiveTheme === "dark";
+
   return (
-    <ThemeContext.Provider value={{ theme: effectiveTheme, mode, setMode }}>
+    <ThemeContext.Provider
+      value={{
+        theme: effectiveTheme,
+        isDark,
+        colors,
+        mode,
+        setMode,
+        toggleTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

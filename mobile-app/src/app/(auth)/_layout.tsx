@@ -1,18 +1,18 @@
-import { useAuth } from "@/store/auth.store";
-import { Redirect, Stack } from "expo-router";
+import { Stack } from "expo-router";
 import React from "react";
+import { useAppTheme } from "@/context/ThemeContext";
 
 export default function AuthLayout() {
-  const { token, isLoading } = useAuth();
-
-  if (!isLoading && token) {
-    return <Redirect href="/(app)" />;
-  }
+  const { isDark } = useAppTheme();
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="login" />
-      <Stack.Screen name="sign-up" />
-    </Stack>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: {
+          backgroundColor: isDark ? "#090A12" : "#F8FAFC",
+        },
+      }}
+    />
   );
 }

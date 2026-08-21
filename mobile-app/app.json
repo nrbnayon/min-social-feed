@@ -7,11 +7,13 @@
     "icon": "./assets/icons/app-icon.png",
     "scheme": "min-social-feed",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#090A12",
     "ios": {
       "icon": "./assets/icons/app-icon.png",
       "bundleIdentifier": "com.minisocial.feed",
       "buildNumber": "1",
       "supportsTablet": true,
+      "userInterfaceStyle": "automatic",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -23,12 +25,13 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#000000",
+        "backgroundColor": "#090A12",
         "foregroundImage": "./assets/icons/app-icon.png"
       },
       "package": "com.minisocial.feed",
       "predictiveBackGestureEnabled": false,
       "versionCode": 1,
+      "userInterfaceStyle": "automatic",
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -48,16 +51,20 @@
         "expo-splash-screen",
         {
           "image": "./assets/icons/logo.png",
-          "imageWidth": 200,
+          "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#090A12",
+          "dark": {
+            "image": "./assets/icons/logo.png",
+            "backgroundColor": "#090A12"
+          }
         }
       ],
       [
         "expo-notifications",
         {
           "icon": "./assets/icons/app-icon.png",
-          "color": "#000000",
+          "color": "#6366F1",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true
         }

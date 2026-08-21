@@ -1,4 +1,29 @@
-import { FlatList } from "react-native";
-import type { Post } from "@/types/post";
+import React from "react";
+import { FlatList, FlatListProps } from "react-native";
+import type { Post } from "@/types";
 import { PostCard } from "./PostCard";
-export function PostList({ posts }: { posts: Post[] }) { return <FlatList data={posts} keyExtractor={(post) => post._id} renderItem={({ item }) => <PostCard post={item} />} />; }
+
+interface PostListProps extends Partial<FlatListProps<Post>> {
+  posts: Post[];
+  onCommentPress?: (post: Post) => void;
+  onSharePress?: (post: Post) => void;
+}
+
+export function PostList({ posts, onCommentPress, onSharePress, ...props }: PostListProps) {
+  return (
+    <FlatList
+      data={posts}
+      keyExtractor={(post) => post.id || post._id || String(Math.random())}
+      renderItem={({ item }) => (
+        <PostCard
+          post={item}
+          onCommentPress={onCommentPress}
+          onSharePress={onSharePress}
+        />
+      )}
+      {...props}
+    />
+  );
+}
+
+export default PostList;
