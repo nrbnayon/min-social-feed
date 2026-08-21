@@ -17,6 +17,7 @@ import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
 import { Gradients } from "@/constants/theme";
 import { Input } from "@/components/ui/input";
+import { appShadow } from "@/lib/utils";
 import {
   User,
   AtSign,
@@ -160,7 +161,7 @@ export default function SignUpScreen() {
             disabled={loading}
             activeOpacity={0.85}
             style={{ height: 50, overflow: "hidden" }}
-            className="w-full shadow-md shadow-indigo-500/25 mb-4 rounded-lg"
+            className={`w-full ${appShadow} mb-4 rounded-lg`}
           >
             <LinearGradient
               colors={Gradients.brand}

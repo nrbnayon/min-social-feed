@@ -25,7 +25,7 @@ import { CommentSheet } from "@/components/comments/CommentSheet";
 import { ShareModal } from "@/components/feed/ShareModal";
 import { SEED_USERS, CURRENT_USER } from "@/data/seed";
 import { Gradients } from "@/constants/theme";
-import { formatCount } from "@/lib/utils";
+import { formatCount, appShadow } from "@/lib/utils";
 import {
   MapPin,
   Globe,
@@ -197,7 +197,7 @@ export default function UserProfileScreen() {
                 backgroundColor: isFollowing ? colors.surface2 : colors.brand,
                 borderColor: isFollowing ? colors.border : colors.brand,
               }}
-              className="px-5 py-2.5 rounded-full border flex-row items-center gap-1.5 shadow-lg"
+              className={`px-5 py-2.5 rounded-full border flex-row items-center gap-1.5 ${appShadow}`}
             >
               {isFollowing ? (
                 <>
@@ -226,7 +226,7 @@ export default function UserProfileScreen() {
                 backgroundColor: colors.surface2,
                 borderColor: colors.border,
               }}
-              className="px-4 py-2.5 rounded-full border items-center shadow-xs"
+              className={`px-4 py-2.5 rounded-full border items-center ${appShadow}`}
             >
               <Text style={{ color: colors.text }} className="text-xs font-bold">
                 My Profile

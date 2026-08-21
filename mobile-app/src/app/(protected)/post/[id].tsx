@@ -21,7 +21,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ShareModal } from "@/components/feed/ShareModal";
 import { Gradients } from "@/constants/theme";
-import { formatCount } from "@/lib/utils";
+import { appShadow, formatCount } from "@/lib/utils";
 import type { Post } from "@/types";
 import {
   Send,
@@ -380,7 +380,7 @@ export default function PostDetailScreen() {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
                 }}
-                className="flex-row items-center justify-center px-4 py-2.5 rounded-xl border w-full shadow-xs"
+                className={`flex-row items-center justify-center px-4 py-2.5 rounded-xl border w-full ${appShadow}`}
               >
                 {isLoadingMore ? (
                   <ActivityIndicator size="small" color={colors.brand} />

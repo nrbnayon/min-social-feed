@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { CommentSheet } from "@/components/comments/CommentSheet";
 import { ShareModal } from "@/components/feed/ShareModal";
 import { SUGGESTED_USERS } from "@/data/seed";
+import { appShadow } from "@/lib/utils";
 import {
   Search,
   Users,
@@ -153,7 +154,7 @@ export default function ExploreScreen() {
                   borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
                   width: 148,
                 }}
-                className="p-3.5 rounded-2xl border items-center shadow-xs"
+                className={`p-3.5 rounded-2xl border items-center ${appShadow}`}
               >
                 <Avatar
                   src={user.avatar}
