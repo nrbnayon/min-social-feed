@@ -115,7 +115,7 @@ export default function LoginScreen() {
 
             {/* Error Message */}
             {error ? (
-              <View className="bg-pink/10 border border-pink/30 rounded-xl p-3 mb-4">
+              <View className="bg-pink/10 border border-pink/30 rounded-md p-3 mb-4">
                 <Text className="text-xs font-semibold text-pink text-center">
                   {error}
                 </Text>
@@ -127,7 +127,7 @@ export default function LoginScreen() {
               <Text className="text-xs font-semibold text-textSecondary mb-2">
                 Email Address
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
                 <Mail size={18} color={colors.text3} />
                 <TextInput
                   value={email}
@@ -146,7 +146,7 @@ export default function LoginScreen() {
               <Text className="text-xs font-semibold text-textSecondary mb-2">
                 Password
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
                 <Lock size={18} color={colors.text3} />
                 <TextInput
                   value={password}
@@ -174,7 +174,7 @@ export default function LoginScreen() {
             <Pressable
               onPress={handleLogin}
               disabled={loading || demoLoading}
-              className="w-full rounded-xl overflow-hidden active:opacity-90 active:scale-[0.99]"
+              className="w-full rounded-md overflow-hidden active:opacity-90 active:scale-[0.99]"
             >
               <LinearGradient
                 colors={Gradients.brand}
@@ -196,7 +196,7 @@ export default function LoginScreen() {
             <Pressable
               onPress={handleDemoLogin}
               disabled={loading || demoLoading}
-              className="flex-row items-center justify-center gap-2 h-12 rounded-xl bg-surface2 border border-border mt-3 active:opacity-80"
+              className="flex-row items-center justify-center gap-2 h-12 rounded-md bg-surface2 border border-border mt-3 active:opacity-80"
             >
               {demoLoading ? (
                 <ActivityIndicator color={colors.brand2} size="small" />

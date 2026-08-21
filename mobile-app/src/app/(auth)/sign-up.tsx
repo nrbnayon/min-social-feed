@@ -112,7 +112,7 @@ export default function SignUpScreen() {
 
             {/* Error Message */}
             {error ? (
-              <View className="bg-pink/10 border border-pink/30 rounded-xl p-3 mb-3">
+              <View className="bg-pink/10 border border-pink/30 rounded-md p-3 mb-3">
                 <Text className="text-xs font-semibold text-pink text-center">
                   {error}
                 </Text>
@@ -124,7 +124,7 @@ export default function SignUpScreen() {
               <Text className="text-xs font-semibold text-textSecondary mb-1.5">
                 Full Name
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
                 <User size={18} color={colors.text3} />
                 <TextInput
                   value={name}
@@ -141,7 +141,7 @@ export default function SignUpScreen() {
               <Text className="text-xs font-semibold text-textSecondary mb-1.5">
                 Username
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
                 <AtSign size={18} color={colors.text3} />
                 <TextInput
                   value={username}
@@ -159,7 +159,7 @@ export default function SignUpScreen() {
               <Text className="text-xs font-semibold text-textSecondary mb-1.5">
                 Email Address
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
                 <Mail size={18} color={colors.text3} />
                 <TextInput
                   value={email}
@@ -178,7 +178,7 @@ export default function SignUpScreen() {
               <Text className="text-xs font-semibold text-textSecondary mb-1.5">
                 Password
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-xl bg-surface2 border border-border">
+              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
                 <Lock size={18} color={colors.text3} />
                 <TextInput
                   value={password}
@@ -206,7 +206,7 @@ export default function SignUpScreen() {
             <Pressable
               onPress={handleSignUp}
               disabled={loading}
-              className="w-full rounded-xl overflow-hidden active:opacity-90 active:scale-[0.99] mb-3"
+              className="w-full rounded-md overflow-hidden active:opacity-90 active:scale-[0.99] mb-3"
             >
               <LinearGradient
                 colors={Gradients.brand}
