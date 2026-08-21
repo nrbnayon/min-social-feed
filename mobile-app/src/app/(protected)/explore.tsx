@@ -1,13 +1,16 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import type { User, Post } from "@/types";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
@@ -24,20 +27,33 @@ import {
   SearchX,
   BadgeCheck,
   TrendingUp,
+  CheckCircle2,
 } from "lucide-react-native";
+
+const PAGE_SIZE = 5;
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const posts = usePostsStore((s) => s.posts);
+  const { posts, refresh, isLoading } = usePostsStore();
   const showToast = useToastStore((s) => s.showToast);
 
   const [query, setQuery] = useState("");
   const [followedIds, setFollowedIds] = useState<string[]>([]);
 
+  // Infinite scroll and pull-to-refresh state
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Modals state
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [sharePost, setSharePost] = useState<Post | null>(null);
+
+  // Reset pagination on query change
+  useEffect(() => {
+    setPage(1);
+  }, [query]);
 
   const handleFollowToggle = (user: User) => {
     const isNowFollowing = !followedIds.includes(user.id);
@@ -62,6 +78,32 @@ export default function ExploreScreen() {
     });
   }, [posts, query]);
 
+  // Paginated visible posts
+  const visiblePosts = useMemo(() => {
+    return filteredPosts.slice(0, page * PAGE_SIZE);
+  }, [filteredPosts, page]);
+
+  const hasMore = visiblePosts.length < filteredPosts.length;
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setPage(1);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore || isLoading) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setPage((prev) => prev + 1);
+      setIsLoadingMore(false);
+    }, 350);
+  };
+
   const renderHeader = () => (
     <View className="pt-2">
       {/* 1. Reusable Search Input */}
@@ -72,13 +114,13 @@ export default function ExploreScreen() {
         leftIcon={<Search size={18} color={colors.text3} />}
         clearable
         onClear={() => setQuery("")}
-        inputHeight={46}
-        containerClassName="px-4 mb-4"
+        inputHeight={44}
+        containerClassName="px-4 mb-3"
       />
 
       {/* 2. Suggested Creators Section */}
-      <View className="mb-5">
-        <View className="px-4 mb-3 flex-row items-center justify-between">
+      <View className="mb-4">
+        <View className="px-4 mb-2.5 flex-row items-center justify-between">
           <View className="flex-row items-center gap-1.5">
             <Users size={16} color={colors.brand2} />
             <Text
@@ -88,24 +130,24 @@ export default function ExploreScreen() {
               Suggested Creators
             </Text>
           </View>
-          {/* <Text
-            style={{ color: colors.text3 }}
-            className="text-xs font-semibold"
-          >
-            {SUGGESTED_USERS.length} Discover
-          </Text> */}
         </View>
 
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingVertical: 10 }}
+          contentContainerStyle={{
+            paddingHorizontal: 16,
+            gap: 10,
+            paddingVertical: 6,
+          }}
         >
           {SUGGESTED_USERS.map((user) => {
             const isFollowing = followedIds.includes(user.id);
             return (
-              <View
+              <TouchableOpacity
                 key={user.id}
+                onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
+                activeOpacity={0.85}
                 style={{
                   backgroundColor: colors.surface,
                   borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
@@ -118,6 +160,7 @@ export default function ExploreScreen() {
                   size={50}
                   gradientBorder={true}
                   name={user.name}
+                  onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
                 />
 
                 <View className="flex-row items-center gap-1 mt-2 mb-0.5">
@@ -142,7 +185,10 @@ export default function ExploreScreen() {
                 </Text>
 
                 <TouchableOpacity
-                  onPress={() => handleFollowToggle(user)}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleFollowToggle(user);
+                  }}
                   activeOpacity={0.8}
                   style={{
                     backgroundColor: isFollowing ? colors.surface2 : colors.brand,
@@ -160,7 +206,7 @@ export default function ExploreScreen() {
                     {isFollowing ? "Following" : "Follow"}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </ScrollView>
@@ -208,9 +254,9 @@ export default function ExploreScreen() {
         </Text>
       </View>
 
-      {/* 📜 Feed List */}
+      {/* 📜 Feed List with Pull-to-Refresh & Infinite Scroll */}
       <FlatList
-        data={filteredPosts}
+        data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
         ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
@@ -224,51 +270,80 @@ export default function ExploreScreen() {
           paddingBottom: insets.bottom + 80,
         }}
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View className="px-6 py-12 items-center">
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: colors.surface2,
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 12,
-              }}
-            >
-              <SearchX size={26} color={colors.text3} />
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.brand}
+            colors={[colors.brand]}
+          />
+        }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View className="py-5 items-center justify-center">
+              <ActivityIndicator size="small" color={colors.brand} />
             </View>
-            <Text
-              style={{ color: colors.text }}
-              className="text-base font-bold text-center mb-1"
-            >
-              No posts found
-            </Text>
-            <Text
-              style={{ color: colors.text3 }}
-              className="text-sm text-center mb-4"
-            >
-              No results found for "{query}". Try a different keyword or creator.
-            </Text>
-            {query.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setQuery("")}
-                style={{
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                }}
-                className="px-4 py-2 rounded-lg border"
+          ) : !hasMore && visiblePosts.length > 0 ? (
+            <View className="py-6 items-center flex-row justify-center gap-1.5 opacity-60">
+              <CheckCircle2 size={14} color={colors.text3} />
+              <Text
+                style={{ color: colors.text3 }}
+                className="text-xs font-medium"
               >
-                <Text
-                  style={{ color: colors.brand2 }}
-                  className="text-xs font-semibold"
+                You're all caught up
+              </Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          !isLoading && !isRefreshing ? (
+            <View className="px-6 py-12 items-center">
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 28,
+                  backgroundColor: colors.surface2,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <SearchX size={26} color={colors.text3} />
+              </View>
+              <Text
+                style={{ color: colors.text }}
+                className="text-base font-bold text-center mb-1"
+              >
+                No posts found
+              </Text>
+              <Text
+                style={{ color: colors.text3 }}
+                className="text-sm text-center mb-4"
+              >
+                No results found for "{query}". Try a different keyword or creator.
+              </Text>
+              {query.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setQuery("")}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  }}
+                  className="px-4 py-2 rounded-lg border"
                 >
-                  Clear Search
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+                  <Text
+                    style={{ color: colors.brand2 }}
+                    className="text-xs font-semibold"
+                  >
+                    Clear Search
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null
         }
       />
 

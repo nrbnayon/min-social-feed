@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Image,
   RefreshControl,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -23,7 +24,10 @@ import {
   Bell,
   Search,
   SearchX,
+  CheckCircle2,
 } from "lucide-react-native";
+
+const PAGE_SIZE = 5;
 
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
@@ -40,9 +44,19 @@ export default function FeedScreen() {
   const [activeTab, setActiveTab] = useState<"forYou" | "following">("forYou");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Pagination state (infinite scroll)
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   // Modals state
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [sharePost, setSharePost] = useState<Post | null>(null);
+
+  // Reset pagination when active tab or search query changes
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, searchQuery]);
 
   // Compute unread notifications count
   const unreadNotificationsCount = useMemo(() => {
@@ -71,6 +85,32 @@ export default function FeedScreen() {
 
     return result;
   }, [posts, activeTab, searchQuery, currentUser]);
+
+  // Paginated visible posts for infinite scroll
+  const visiblePosts = useMemo(() => {
+    return filteredPosts.slice(0, page * PAGE_SIZE);
+  }, [filteredPosts, page]);
+
+  const hasMore = visiblePosts.length < filteredPosts.length;
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setPage(1);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (isLoadingMore || !hasMore || isLoading) return;
+    setIsLoadingMore(true);
+    setTimeout(() => {
+      setPage((prev) => prev + 1);
+      setIsLoadingMore(false);
+    }, 350);
+  };
 
   const renderHeader = () => (
     <View className="pt-1">
@@ -246,9 +286,9 @@ export default function FeedScreen() {
         </View>
       </View>
 
-      {/* 📜 Feed Posts List */}
+      {/* 📜 Feed Posts List with Pull-to-Refresh & Infinite Scroll */}
       <FlatList
-        data={filteredPosts}
+        data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
         ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
@@ -262,16 +302,35 @@ export default function FeedScreen() {
           paddingBottom: insets.bottom + 80,
         }}
         showsVerticalScrollIndicator={false}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refresh}
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
             tintColor={colors.brand}
             colors={[colors.brand]}
           />
         }
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View className="py-5 items-center justify-center">
+              <ActivityIndicator size="small" color={colors.brand} />
+            </View>
+          ) : !hasMore && visiblePosts.length > 0 ? (
+            <View className="py-6 items-center flex-row justify-center gap-1.5 opacity-60">
+              <CheckCircle2 size={14} color={colors.text3} />
+              <Text
+                style={{ color: colors.text3 }}
+                className="text-xs font-medium"
+              >
+                You're all caught up
+              </Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
-          !isLoading ? (
+          !isLoading && !isRefreshing ? (
             <View className="px-6 py-12 items-center">
               <View
                 style={{

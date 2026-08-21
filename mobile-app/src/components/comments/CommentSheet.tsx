@@ -17,6 +17,7 @@ import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
 import { useAuth } from "@/store/auth.store";
 import { X, Send, Heart } from "lucide-react-native";
+import { router } from "expo-router";
 
 interface CommentSheetProps {
   post: Post | null;
@@ -89,38 +90,50 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
                 </Text>
               </View>
             }
-            renderItem={({ item }) => (
-              <View style={styles.commentItem}>
-                <Avatar
-                  src={item.avatar || item.author?.avatarUrl}
-                  size={36}
-                  name={item.name || item.username || item.author?.username}
-                />
-                <View style={styles.commentBody}>
-                  <View style={styles.commentMetaRow}>
-                    <Text style={[styles.commentUsername, { color: colors.text }]}>
-                      @{item.username || item.author?.username || "user"}
-                    </Text>
-                    <Text style={[styles.commentTime, { color: colors.text3 }]}>
-                      {item.time || "just now"}
+            renderItem={({ item }) => {
+              const commenterUsername = (item.username || item.author?.username || "user").replace(/^@/, "");
+              const commenterId = item.userId || item.author?.id || commenterUsername;
+              const handleCommenterPress = () => {
+                onClose();
+                router.push(`/(protected)/user/${commenterId}` as any);
+              };
+
+              return (
+                <View style={styles.commentItem}>
+                  <Avatar
+                    src={item.avatar || item.author?.avatarUrl}
+                    size={36}
+                    name={item.name || item.username || item.author?.username}
+                    onPress={handleCommenterPress}
+                  />
+                  <View style={styles.commentBody}>
+                    <View style={styles.commentMetaRow}>
+                      <Pressable onPress={handleCommenterPress}>
+                        <Text style={[styles.commentUsername, { color: colors.text }]}>
+                          @{commenterUsername}
+                        </Text>
+                      </Pressable>
+                      <Text style={[styles.commentTime, { color: colors.text3 }]}>
+                        {item.time || "just now"}
+                      </Text>
+                    </View>
+
+                    <Text style={[styles.commentText, { color: colors.text }]}>
+                      {item.text || item.content}
                     </Text>
                   </View>
 
-                  <Text style={[styles.commentText, { color: colors.text }]}>
-                    {item.text || item.content}
-                  </Text>
+                  <Pressable style={styles.commentLikeBtn}>
+                    <Heart size={14} color={colors.text3} />
+                    {item.likes > 0 && (
+                      <Text style={[styles.commentLikeCount, { color: colors.text3 }]}>
+                        {item.likes}
+                      </Text>
+                    )}
+                  </Pressable>
                 </View>
-
-                <Pressable style={styles.commentLikeBtn}>
-                  <Heart size={14} color={colors.text3} />
-                  {item.likes > 0 && (
-                    <Text style={[styles.commentLikeCount, { color: colors.text3 }]}>
-                      {item.likes}
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            )}
+              );
+            }}
           />
 
           {/* Bottom Input */}

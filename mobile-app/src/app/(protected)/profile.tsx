@@ -20,6 +20,7 @@ import { PostCard } from "@/components/feed/PostCard";
 import { Avatar } from "@/components/Shared/Avatar";
 import { LogoutModal } from "@/components/Shared/LogoutModal";
 import { Gradients } from "@/constants/theme";
+import { formatCount } from "@/lib/utils";
 import {
   MapPin,
   Globe,
@@ -59,12 +60,6 @@ export default function ProfileScreen() {
     setShowLogoutModal(false);
     await logout();
     router.replace("/(auth)/login");
-  };
-
-  const formatStat = (n: number) => {
-    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-    if (n >= 1_000) return (n / 1_000).toFixed(n >= 10_000 ? 0 : 1) + "K";
-    return String(n);
   };
 
   const renderHeader = () => (
@@ -192,7 +187,7 @@ export default function ProfileScreen() {
 
           <View style={styles.statCol}>
             <Text style={[styles.statValue, { color: colors.brand2 }]}>
-              {formatStat(user?.followers || 1248)}
+              {formatCount(user?.followers || 1248)}
             </Text>
             <Text style={[styles.statLabel, { color: colors.text3 }]}>
               Followers
@@ -203,7 +198,7 @@ export default function ProfileScreen() {
 
           <View style={styles.statCol}>
             <Text style={[styles.statValue, { color: colors.brand2 }]}>
-              {formatStat(user?.following || 394)}
+              {formatCount(user?.following || 394)}
             </Text>
             <Text style={[styles.statLabel, { color: colors.text3 }]}>
               Following

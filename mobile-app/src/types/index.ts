@@ -8,7 +8,7 @@ export type User = {
   coverImage?: string;
   bio: string;
   location: string;
-  website: string;
+  website?: string;
   followers: number;
   following: number;
   verified: boolean;
@@ -28,6 +28,7 @@ export type Comment = {
   createdAt?: string;
   likes: number;
   author?: {
+    id?: string;
     username: string;
     avatarUrl?: string;
   };
@@ -54,6 +55,7 @@ export type Post = {
   views: number;
   tags: string[];
   author?: {
+    id?: string;
     username: string;
     avatarUrl?: string;
   };

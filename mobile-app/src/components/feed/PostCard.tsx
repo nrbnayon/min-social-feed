@@ -12,6 +12,7 @@ import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsStore } from "@/hooks/usePosts";
 import { useAuth } from "@/store/auth.store";
+import { formatCount } from "@/lib/utils";
 import {
   Heart,
   MessageSquare,
@@ -74,8 +75,14 @@ export function PostCard({
 
   const handleCardPress = () => {
     if (!isDetail) {
-      router.push(`/(protected)/post/${postId}`);
+      router.push(`/(protected)/post/${postId}` as any);
     }
+  };
+
+  const handleUserPress = (e?: any) => {
+    e?.stopPropagation?.();
+    const targetUserId = post.userId || post.author?.id || authorUsername;
+    router.push(`/(protected)/user/${targetUserId}` as any);
   };
 
   return (
@@ -98,8 +105,13 @@ export function PostCard({
           size={42}
           gradientBorder={true}
           name={authorName}
+          onPress={handleUserPress}
         />
-        <View style={styles.authorInfo}>
+        <TouchableOpacity
+          onPress={handleUserPress}
+          activeOpacity={0.7}
+          style={styles.authorInfo}
+        >
           <View style={styles.nameRow}>
             <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
               {authorName}
@@ -111,7 +123,7 @@ export function PostCard({
           <Text style={[styles.usernameRow, { color: colors.text3 }]} numberOfLines={1}>
             @{authorUsername} · {post.timeAgo || "now"}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Post Text Content */}
@@ -160,7 +172,7 @@ export function PostCard({
                 { color: isLiked ? colors.pink : colors.text3 },
               ]}
             >
-              {likeCount}
+              {formatCount(likeCount)}
             </Text>
           </TouchableOpacity>
 
@@ -173,7 +185,7 @@ export function PostCard({
           >
             <MessageSquare size={18} color={colors.text3} />
             <Text style={[styles.actionCount, { color: colors.text3 }]}>
-              {commentCount}
+              {formatCount(commentCount)}
             </Text>
           </TouchableOpacity>
         </View>

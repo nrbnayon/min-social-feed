@@ -21,6 +21,7 @@ import { BackButton } from "@/components/ui/BackButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ShareModal } from "@/components/feed/ShareModal";
 import { Gradients } from "@/constants/theme";
+import { formatCount } from "@/lib/utils";
 import type { Post } from "@/types";
 import {
   Send,
@@ -73,7 +74,7 @@ export default function PostDetailScreen() {
     if (!post) return;
     NativeShare.share({
       message: `${post.content}\n\nPosted by @${authorUsername} on MiniSocial`,
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const handleSendComment = async () => {
@@ -188,12 +189,25 @@ export default function PostDetailScreen() {
               className="px-5 pt-4 pb-4"
             >
               {/* Author Row */}
-              <View className="flex-row items-center mb-3.5">
+              <TouchableOpacity
+                onPress={() =>
+                  router.push(
+                    `/(protected)/user/${post.userId || post.author?.id || authorUsername}` as any
+                  )
+                }
+                activeOpacity={0.7}
+                className="flex-row items-center mb-3.5"
+              >
                 <Avatar
                   src={authorAvatar}
                   size={46}
                   gradientBorder={true}
                   name={authorName}
+                  onPress={() =>
+                    router.push(
+                      `/(protected)/user/${post.userId || post.author?.id || authorUsername}` as any
+                    )
+                  }
                 />
                 <View className="ml-3 flex-1">
                   <View className="flex-row items-center gap-1.5">
@@ -214,7 +228,7 @@ export default function PostDetailScreen() {
                     @{authorUsername} · {post.timeAgo || "now"}
                   </Text>
                 </View>
-              </View>
+              </TouchableOpacity>
 
               {/* Full Text Content */}
               <Text
@@ -258,7 +272,7 @@ export default function PostDetailScreen() {
                         fontWeight: "600",
                       }}
                     >
-                      {likeCount}
+                      {formatCount(likeCount)}
                     </Text>
                   </TouchableOpacity>
 
@@ -272,7 +286,7 @@ export default function PostDetailScreen() {
                         fontWeight: "600",
                       }}
                     >
-                      {commentCount}
+                      {formatCount(commentCount)}
                     </Text>
                   </View>
                 </View>
@@ -366,7 +380,7 @@ export default function PostDetailScreen() {
                   backgroundColor: colors.surface,
                   borderColor: colors.border,
                 }}
-                className="flex-row items-center justify-center px-4 py-2.5 rounded-xl border w-full shadow-sm"
+                className="flex-row items-center justify-center px-4 py-2.5 rounded-xl border w-full shadow-xs"
               >
                 {isLoadingMore ? (
                   <ActivityIndicator size="small" color={colors.brand} />
@@ -398,6 +412,11 @@ export default function PostDetailScreen() {
           const authorName = item.name || item.author?.username || item.username || "User";
           const authorUsername = (item.username || item.author?.username || "user").replace(/^@/, "");
           const authorAvatar = item.avatar || item.author?.avatarUrl;
+          const commenterId = item.userId || item.author?.id || authorUsername;
+
+          const handleCommenterPress = () => {
+            router.push(`/(protected)/user/${commenterId}` as any);
+          };
 
           return (
             <View
@@ -412,15 +431,21 @@ export default function PostDetailScreen() {
                 size={36}
                 gradientBorder={true}
                 name={authorName}
+                onPress={handleCommenterPress}
               />
               <View className="flex-1 ml-3">
                 <View className="flex-row items-center justify-between mb-1">
-                  <Text
-                    style={{ color: colors.text }}
-                    className="text-sm font-bold"
+                  <TouchableOpacity
+                    onPress={handleCommenterPress}
+                    activeOpacity={0.7}
                   >
-                    {authorName}
-                  </Text>
+                    <Text
+                      style={{ color: colors.text }}
+                      className="text-sm font-bold"
+                    >
+                      {authorName}
+                    </Text>
+                  </TouchableOpacity>
                   <Text
                     style={{ color: colors.text3 }}
                     className="text-xs"
@@ -429,12 +454,17 @@ export default function PostDetailScreen() {
                   </Text>
                 </View>
 
-                <Text
-                  style={{ color: colors.text3 }}
-                  className="text-xs mb-1.5"
+                <TouchableOpacity
+                  onPress={handleCommenterPress}
+                  activeOpacity={0.7}
                 >
-                  @{authorUsername}
-                </Text>
+                  <Text
+                    style={{ color: colors.text3 }}
+                    className="text-xs mb-1.5"
+                  >
+                    @{authorUsername}
+                  </Text>
+                </TouchableOpacity>
 
                 <Text
                   style={{ color: colors.text }}
