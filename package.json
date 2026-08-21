@@ -1,9 +1,29 @@
 {
   "name": "min-social-feed",
+  "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "backend",
+    "mobile-app"
+  ],
   "scripts": {
+    "install:all": "npm --prefix backend install && npm --prefix mobile-app install",
+    "install:backend": "npm --prefix backend install",
+    "install:mobile": "npm --prefix mobile-app install",
     "dev:backend": "npm --prefix backend run dev",
     "build:backend": "npm --prefix backend run build",
-    "dev:mobile": "npm --prefix mobile-app start"
+    "start:backend": "npm --prefix backend start",
+    "test:backend": "npm --prefix backend test",
+    "dev:mobile": "npm --prefix mobile-app start",
+    "start:mobile": "npm --prefix mobile-app start",
+    "mobile:android": "npm --prefix mobile-app run android",
+    "mobile:ios": "npm --prefix mobile-app run ios",
+    "mobile:web": "npm --prefix mobile-app run web",
+    "mobile:lint": "npm --prefix mobile-app run lint",
+    "mobile:build:android": "npm --prefix mobile-app run build:android",
+    "mobile:build:ios": "npm --prefix mobile-app run build:ios",
+    "mobile:build:all": "npm --prefix mobile-app run build:all",
+    "build": "npm --prefix backend run build",
+    "test": "npm --prefix backend test"
   }
 }

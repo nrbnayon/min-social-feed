@@ -6,8 +6,10 @@ import { postRoutes } from "./routes/post.routes.js";
 import { notificationRoutes } from "./routes/notification.routes.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { notFoundMiddleware } from "./middlewares/not-found.middleware.js";
+import { requestLogger } from "./middlewares/logger.middleware.js";
 
 export const app = express();
+app.use(requestLogger);
 app.use(cors({ origin: env.clientOrigin === "*" ? true : env.clientOrigin }));
 app.use(express.json({ limit: "1mb" }));
 app.get("/health", (_request, response) => response.json({ success: true, data: { status: "ok" } }));

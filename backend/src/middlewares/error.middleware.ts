@@ -1,6 +1,7 @@
 import type { ErrorRequestHandler } from "express";
 import { sendError } from "../utils/api-response.js";
 import { AppError } from "../utils/app-error.js";
+import { logger } from "../utils/logger.js";
 
 export const errorMiddleware: ErrorRequestHandler = (error, _request, response, _next) => {
   // Known application error (AuthError, AppError, or any subclass)
@@ -30,7 +31,7 @@ export const errorMiddleware: ErrorRequestHandler = (error, _request, response, 
   }
 
   // Unexpected server errors
-  console.error("[Server Error]", error);
+  logger.error("[Server Error]", error);
   return sendError(
     response,
     error instanceof Error ? error.message : "An unexpected server error occurred.",
