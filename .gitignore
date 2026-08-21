@@ -3,15 +3,7 @@ dist
 .env
 coverage
 .expo
-google-services.json
-GoogleService-Info.plist
-*.plist
 
-google-services.json
-GoogleService-Info.plist
-**/google-services.json
-**/GoogleService-Info.plist
 *firebase-admin*.json
 *firebase-adminsdk*.json
-*.plist
-!Info.plist
+serviceAccountKey.json
