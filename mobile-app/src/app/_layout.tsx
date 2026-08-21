@@ -9,7 +9,7 @@ import { useAuth } from "@/store/auth.store";
 import "../../global.css";
 
 function AppContent() {
-  const { theme, isDark } = useAppTheme();
+  const { isDark } = useAppTheme();
   const initializeAuth = useAuth((s) => s.initialize);
 
   useEffect(() => {

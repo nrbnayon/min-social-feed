@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   ScrollView,
-  Pressable,
+  TouchableOpacity,
   Image,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -81,86 +81,129 @@ export default function SignUpScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           justifyContent: "center",
-          paddingTop: insets.top + 16,
-          paddingBottom: insets.bottom + 20,
+          paddingTop: insets.top + 20,
+          paddingBottom: insets.bottom + 24,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        className="flex-1 px-5"
+        className="flex-1 px-6"
       >
-        <View className="w-full max-w-sm mx-auto justify-center">
-          {/* App Logo & Branding */}
-          <View className="items-center mb-5">
+        <View className="w-full max-w-md mx-auto">
+          {/* Header & Logo */}
+          <View className="items-center mb-6">
             <Image
               source={require("@/assets/images/app-logo.png")}
-              className="w-14 h-14 rounded-2xl mb-2"
+              style={{ width: 64, height: 64, borderRadius: 14 }}
+              className="mb-3 shadow-lg shadow-indigo-500/30"
               resizeMode="contain"
             />
-            <Text className="text-2xl font-extrabold text-foreground tracking-tight">
-              MiniSocial
+            <Text className="text-3xl font-black text-foreground tracking-tight text-center">
+              Create account
+            </Text>
+            <Text className="text-base text-textSecondary mt-1.5 text-center">
+              Join the conversation on MiniSocial
             </Text>
           </View>
 
-          {/* Form Card */}
-          <View className="bg-surface rounded-3xl p-6 border border-border shadow-2xl mb-4">
-            <Text className="text-2xl font-bold text-foreground tracking-tight">
-              Create an account
-            </Text>
-            <Text className="text-sm text-textSecondary mt-1 mb-4">
-              Join the conversation with creators
-            </Text>
+          {/* Error Message */}
+          {error ? (
+            <View className="bg-pink/10 border border-pink/30 rounded-md p-3.5 mb-4">
+              <Text className="text-sm font-semibold text-pink text-center">
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
-            {/* Error Message */}
-            {error ? (
-              <View className="bg-pink/10 border border-pink/30 rounded-md p-3 mb-3">
-                <Text className="text-xs font-semibold text-pink text-center">
-                  {error}
-                </Text>
-              </View>
-            ) : null}
-
+          {/* Form Fields */}
+          <View className="mb-4">
             {/* Full Name */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+            <View className="mb-3.5">
+              <Text className="text-sm font-semibold text-textSecondary mb-1.5 ml-1">
                 Full Name
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
-                <User size={18} color={colors.text3} />
+              <View
+                style={{
+                  height: 50,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                }}
+                className="bg-surface border border-border rounded-lg focus:border-brand"
+              >
+                <User size={19} color={colors.text3} />
                 <TextInput
                   value={name}
                   onChangeText={setName}
                   placeholder="e.g. Alex Morgan"
                   placeholderTextColor={colors.text3}
-                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 16,
+                    color: colors.text,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    paddingVertical: 0,
+                    margin: 0,
+                    height: Platform.OS === "ios" ? 44 : "100%",
+                    textAlignVertical: "center",
+                  }}
                 />
               </View>
             </View>
 
             {/* Username */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+            <View className="mb-3.5">
+              <Text className="text-sm font-semibold text-textSecondary mb-1.5 ml-1">
                 Username
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
-                <AtSign size={18} color={colors.text3} />
+              <View
+                style={{
+                  height: 50,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                }}
+                className="bg-surface border border-border rounded-lg focus:border-brand"
+              >
+                <AtSign size={19} color={colors.text3} />
                 <TextInput
                   value={username}
                   onChangeText={setUsername}
                   placeholder="e.g. alex_design"
                   placeholderTextColor={colors.text3}
                   autoCapitalize="none"
-                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 16,
+                    color: colors.text,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    paddingVertical: 0,
+                    margin: 0,
+                    height: Platform.OS === "ios" ? 44 : "100%",
+                    textAlignVertical: "center",
+                  }}
                 />
               </View>
             </View>
 
             {/* Email */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+            <View className="mb-3.5">
+              <Text className="text-sm font-semibold text-textSecondary mb-1.5 ml-1">
                 Email Address
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
-                <Mail size={18} color={colors.text3} />
+              <View
+                style={{
+                  height: 50,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                }}
+                className="bg-surface border border-border rounded-lg focus:border-brand"
+              >
+                <Mail size={19} color={colors.text3} />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
@@ -168,96 +211,135 @@ export default function SignUpScreen() {
                   placeholderTextColor={colors.text3}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 16,
+                    color: colors.text,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    paddingVertical: 0,
+                    margin: 0,
+                    height: Platform.OS === "ios" ? 44 : "100%",
+                    textAlignVertical: "center",
+                  }}
                 />
               </View>
             </View>
 
             {/* Password */}
-            <View className="mb-4">
-              <Text className="text-xs font-semibold text-textSecondary mb-1.5">
+            <View className="mb-2">
+              <Text className="text-sm font-semibold text-textSecondary mb-1.5 ml-1">
                 Password
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
-                <Lock size={18} color={colors.text3} />
+              <View
+                style={{
+                  height: 50,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                }}
+                className="bg-surface border border-border rounded-lg focus:border-brand"
+              >
+                <Lock size={19} color={colors.text3} />
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Minimum 6 characters"
                   placeholderTextColor={colors.text3}
                   secureTextEntry={!showPassword}
-                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 16,
+                    color: colors.text,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    paddingVertical: 0,
+                    margin: 0,
+                    height: Platform.OS === "ios" ? 44 : "100%",
+                    textAlignVertical: "center",
+                  }}
                 />
-                <Pressable
+                <TouchableOpacity
                   onPress={() => setShowPassword((s) => !s)}
+                  activeOpacity={0.7}
                   className="p-1"
-                  hitSlop={8}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} color={colors.text3} />
+                    <EyeOff size={19} color={colors.text3} />
                   ) : (
-                    <Eye size={18} color={colors.text3} />
+                    <Eye size={19} color={colors.text3} />
                   )}
-                </Pressable>
+                </TouchableOpacity>
               </View>
-            </View>
-
-            {/* Submit Button */}
-            <Pressable
-              onPress={handleSignUp}
-              disabled={loading}
-              className="w-full rounded-md overflow-hidden active:opacity-90 active:scale-[0.99] mb-3"
-            >
-              <LinearGradient
-                colors={Gradients.brand}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="h-12 items-center justify-center px-4"
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text className="text-white font-bold text-base">
-                    Create Account
-                  </Text>
-                )}
-              </LinearGradient>
-            </Pressable>
-
-            {/* Terms & Privacy Links */}
-            <View className="flex-row flex-wrap justify-center items-center">
-              <Text className="text-[11px] text-textSecondary text-center leading-4">
-                By signing up, you agree to our{" "}
-              </Text>
-              <Link href="/(public)/terms" asChild>
-                <Pressable>
-                  <Text className="text-[11px] font-bold text-brand2">
-                    Terms
-                  </Text>
-                </Pressable>
-              </Link>
-              <Text className="text-[11px] text-textSecondary"> and </Text>
-              <Link href="/(public)/privacy" asChild>
-                <Pressable>
-                  <Text className="text-[11px] font-bold text-brand2">
-                    Privacy Policy
-                  </Text>
-                </Pressable>
-              </Link>
             </View>
           </View>
 
+          {/* Submit Button */}
+          <TouchableOpacity
+            onPress={handleSignUp}
+            disabled={loading}
+            activeOpacity={0.85}
+            style={{ height: 50, overflow: "hidden" }}
+            className="w-full shadow-md shadow-indigo-500/25 mb-4 rounded-lg"
+          >
+            <LinearGradient
+              colors={Gradients.brand}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                flex: 1,
+                width: "100%",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text className="text-white font-bold text-base tracking-wide">
+                  Create Account
+                </Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Terms & Privacy */}
+          <View className="flex-row flex-wrap justify-center items-center mb-6 px-2">
+            <Text className="text-xs text-textSecondary text-center leading-5">
+              By continuing, you agree to our{" "}
+            </Text>
+            <Link href="/(public)/terms" asChild>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text className="text-xs font-bold text-brand2">
+                  Terms
+                </Text>
+              </TouchableOpacity>
+            </Link>
+            <Text className="text-xs text-textSecondary"> and </Text>
+            <Link href="/(public)/privacy" asChild>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text className="text-xs font-bold text-brand2">
+                  Privacy Policy
+                </Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+
           {/* Footer Link */}
-          <View className="flex-row justify-center items-center gap-1">
-            <Text className="text-sm text-textSecondary">
+          <View className="flex-row justify-center items-center gap-1.5">
+            <Text className="text-base text-textSecondary">
               Already have an account?
             </Text>
             <Link href="/(auth)/login" asChild>
-              <Pressable className="py-1 px-1">
-                <Text className="text-sm font-bold text-brand2">
+              <TouchableOpacity activeOpacity={0.7} className="py-1 px-1">
+                <Text className="text-base font-bold text-brand2">
                   Sign in
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             </Link>
           </View>
         </View>

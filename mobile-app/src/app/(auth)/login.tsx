@@ -4,7 +4,7 @@ import {
   Text,
   TextInput,
   ScrollView,
-  Pressable,
+  TouchableOpacity,
   Image,
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -31,8 +31,8 @@ export default function LoginScreen() {
   const { login, loginDemo } = useAuth();
   const showToast = useToastStore((s) => s.showToast);
 
-  const [email, setEmail] = useState("jordan@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -41,7 +41,7 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     setError("");
     if (!email.trim()) {
-      setError("Please enter your email.");
+      setError("Please enter your email address.");
       return;
     }
     if (!email.includes("@")) {
@@ -81,54 +81,56 @@ export default function LoginScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           justifyContent: "center",
-          paddingTop: insets.top + 16,
-          paddingBottom: insets.bottom + 20,
+          paddingTop: insets.top + 20,
+          paddingBottom: insets.bottom + 24,
         }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        className="flex-1 px-5"
+        className="flex-1 px-6"
       >
-        <View className="w-full max-w-sm mx-auto justify-center">
-          {/* App Logo & Branding */}
-          <View className="items-center mb-6">
+        <View className="w-full max-w-md mx-auto">
+          {/* Header & App Logo */}
+          <View className="items-center mb-8">
             <Image
               source={require("@/assets/images/app-logo.png")}
-              className="w-16 h-16 rounded-2xl mb-2"
+              style={{ width: 72, height: 72, borderRadius: 16 }}
+              className="mb-4 shadow-lg shadow-indigo-500/30"
               resizeMode="contain"
             />
-            <Text className="text-3xl font-extrabold text-foreground tracking-tight">
-              MiniSocial
+            <Text className="text-3xl font-black text-foreground tracking-tight text-center">
+              Welcome back
             </Text>
-            <Text className="text-sm font-medium text-textSecondary mt-1">
-              Connect • Share • Discover
+            <Text className="text-base text-textSecondary mt-2 text-center">
+              Sign in to continue to MiniSocial
             </Text>
           </View>
 
-          {/* Form Card */}
-          <View className="bg-surface rounded-3xl p-6 border border-border shadow-2xl mb-6">
-            <Text className="text-2xl font-bold text-foreground tracking-tight">
-              Welcome back
-            </Text>
-            <Text className="text-sm text-textSecondary mt-1 mb-5">
-              Sign in to continue to your social feed
-            </Text>
+          {/* Error Message */}
+          {error ? (
+            <View className="bg-pink/10 border border-pink/30 rounded-md p-3.5 mb-5">
+              <Text className="text-sm font-semibold text-pink text-center">
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
-            {/* Error Message */}
-            {error ? (
-              <View className="bg-pink/10 border border-pink/30 rounded-md p-3 mb-4">
-                <Text className="text-xs font-semibold text-pink text-center">
-                  {error}
-                </Text>
-              </View>
-            ) : null}
-
+          {/* Form Fields */}
+          <View className="mb-6">
             {/* Email Field */}
             <View className="mb-4">
-              <Text className="text-xs font-semibold text-textSecondary mb-2">
+              <Text className="text-sm font-semibold text-textSecondary mb-2 ml-1">
                 Email Address
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
-                <Mail size={18} color={colors.text3} />
+              <View
+                style={{
+                  height: 50,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                }}
+                className="bg-surface border border-border rounded-lg focus:border-brand"
+              >
+                <Mail size={19} color={colors.text3} />
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
@@ -136,92 +138,134 @@ export default function LoginScreen() {
                   placeholderTextColor={colors.text3}
                   autoCapitalize="none"
                   keyboardType="email-address"
-                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 16,
+                    color: colors.text,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    paddingVertical: 0,
+                    margin: 0,
+                    height: Platform.OS === "ios" ? 44 : "100%",
+                    textAlignVertical: "center",
+                  }}
                 />
               </View>
             </View>
 
             {/* Password Field */}
-            <View className="mb-6">
-              <Text className="text-xs font-semibold text-textSecondary mb-2">
+            <View className="mb-2">
+              <Text className="text-sm font-semibold text-textSecondary mb-2 ml-1">
                 Password
               </Text>
-              <View className="flex-row items-center h-12 px-3.5 rounded-md bg-surface2 border border-border">
-                <Lock size={18} color={colors.text3} />
+              <View
+                style={{
+                  height: 50,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingHorizontal: 14,
+                }}
+                className="bg-surface border border-border rounded-lg focus:border-brand"
+              >
+                <Lock size={19} color={colors.text3} />
                 <TextInput
                   value={password}
                   onChangeText={setPassword}
                   placeholder="••••••••"
                   placeholderTextColor={colors.text3}
                   secureTextEntry={!showPassword}
-                  className="flex-1 text-foreground text-sm ml-2.5 h-full"
+                  style={{
+                    flex: 1,
+                    marginLeft: 10,
+                    fontSize: 16,
+                    color: colors.text,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    paddingVertical: 0,
+                    margin: 0,
+                    height: Platform.OS === "ios" ? 44 : "100%",
+                    textAlignVertical: "center",
+                  }}
                 />
-                <Pressable
+                <TouchableOpacity
                   onPress={() => setShowPassword((s) => !s)}
+                  activeOpacity={0.7}
                   className="p-1"
-                  hitSlop={8}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} color={colors.text3} />
+                    <EyeOff size={19} color={colors.text3} />
                   ) : (
-                    <Eye size={18} color={colors.text3} />
+                    <Eye size={19} color={colors.text3} />
                   )}
-                </Pressable>
+                </TouchableOpacity>
               </View>
             </View>
-
-            {/* Submit Button */}
-            <Pressable
-              onPress={handleLogin}
-              disabled={loading || demoLoading}
-              className="w-full rounded-md overflow-hidden active:opacity-90 active:scale-[0.99]"
-            >
-              <LinearGradient
-                colors={Gradients.brand}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                className="h-12 items-center justify-center px-4"
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text className="text-white font-bold text-base">
-                    Sign In
-                  </Text>
-                )}
-              </LinearGradient>
-            </Pressable>
-
-            {/* Demo Quick Login */}
-            <Pressable
-              onPress={handleDemoLogin}
-              disabled={loading || demoLoading}
-              className="flex-row items-center justify-center gap-2 h-12 rounded-md bg-surface2 border border-border mt-3 active:opacity-80"
-            >
-              {demoLoading ? (
-                <ActivityIndicator color={colors.brand2} size="small" />
-              ) : (
-                <>
-                  <Sparkles size={16} color={colors.brand2} />
-                  <Text className="text-sm font-semibold text-foreground">
-                    Try Demo Account
-                  </Text>
-                </>
-              )}
-            </Pressable>
           </View>
 
+          {/* Sign In CTA Button */}
+          <TouchableOpacity
+            onPress={handleLogin}
+            disabled={loading || demoLoading}
+            activeOpacity={0.85}
+            style={{ height: 50, overflow: "hidden" }}
+            className="w-full shadow-md shadow-indigo-500/25 mb-3.5 rounded-lg"
+          >
+            <LinearGradient
+              colors={Gradients.brand}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                flex: 1,
+                width: "100%",
+                height: "100%",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text className="text-white font-bold text-base tracking-wide">
+                  Sign In
+                </Text>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          {/* Demo Account Button */}
+          <TouchableOpacity
+            onPress={handleDemoLogin}
+            disabled={loading || demoLoading}
+            activeOpacity={0.8}
+            style={{ height: 50 }}
+            className="flex-row items-center justify-center gap-2 bg-surface border border-border mb-8 rounded-lg"
+          >
+            {demoLoading ? (
+              <ActivityIndicator color={colors.brand2} size="small" />
+            ) : (
+              <>
+                <Sparkles size={18} color={colors.brand2} />
+                <Text className="text-base font-semibold text-foreground">
+                  Try Demo Account
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
           {/* Footer Link */}
-          <View className="flex-row justify-center items-center gap-1">
-            <Text className="text-sm text-textSecondary">
+          <View className="flex-row justify-center items-center gap-1.5">
+            <Text className="text-base text-textSecondary">
               Don't have an account?
             </Text>
             <Link href="/(auth)/sign-up" asChild>
-              <Pressable className="py-1 px-1">
-                <Text className="text-sm font-bold text-brand2">
+              <TouchableOpacity activeOpacity={0.7} className="py-1 px-1">
+                <Text className="text-base font-bold text-brand2">
                   Sign up
                 </Text>
-              </Pressable>
+              </TouchableOpacity>
             </Link>
           </View>
         </View>
