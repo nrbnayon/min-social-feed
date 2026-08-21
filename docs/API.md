@@ -619,17 +619,175 @@ Toggles a like on the post. Idempotent — calling twice on the same post un-lik
 }
 ```
 
+## 1.7 Register Device Push Token
+
+| | |
+|---|---|
+| **Method** | `POST` |
+| **Endpoint** | `/auth/device-token` |
+| **Access** | **Private** |
+
+Saves the device's **Expo push token** to the user's profile so the backend can
+send real-time push notifications. Called automatically by the mobile app right
+after login or registration.
+
+#### Request Body
+```json
+{
+  "expoPushToken": "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+}
+```
+
+| Field | Type | Required | Constraints |
+|:---|:---|:---|:---|
+| `expoPushToken` | `string` | **Yes** | Must start with `ExponentPushToken[` |
+
+#### Response — `200 OK`
+```json
+{
+  "success": true,
+  "message": "Device token registered successfully.",
+  "data": null
+}
+```
+
 ---
 
-## 3. Notifications — `/api/notifications`
+## 3. Notifications — `/api/auth/notifications`
 
-> **Status: Not yet implemented.** All endpoints return `501 Not Implemented`.
+> Notifications are created automatically by the backend when a post is liked or commented on.
+> The mobile app receives them in real-time via FCM / APNs through the Expo Push Service.
 
-| Method | Endpoint | Access | Description |
+### 3.1 Get Notifications
+
+| | |
+|---|---|
+| **Method** | `GET` |
+| **Endpoint** | `/auth/notifications` |
+| **Access** | **Private** |
+
+#### Query Parameters
+
+| Param | Type | Default | Description |
 |:---|:---|:---|:---|
-| `GET` | `/notifications` | Private | Get current user's notifications |
-| `PATCH` | `/notifications/:id/read` | Private | Mark a notification as read |
-| `PATCH` | `/notifications/read-all` | Private | Mark all notifications as read |
+| `page` | `number` | `1` | Page number |
+| `limit` | `number` | `20` | Items per page |
+
+#### Response — `200 OK`
+```json
+{
+  "success": true,
+  "message": "Notifications fetched successfully.",
+  "data": {
+    "items": [
+      {
+        "_id": "66c5a1f2e8b4c91a7d1e7001",
+        "recipient": "66c5a1f2e8b4c91a7d1e4001",
+        "sender": {
+          "id": "66c5a1f2e8b4c91a7d1e4002",
+          "username": "alexm",
+          "name": "Alex Morgan",
+          "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+          "avatarUrl": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150"
+        },
+        "type": "like",
+        "post": {
+          "id": "66c5a1f2e8b4c91a7d1e5001",
+          "content": "Just shipped a new feature! 🚀",
+          "images": []
+        },
+        "read": false,
+        "createdAt": "2026-08-21T13:10:00.000Z",
+        "updatedAt": "2026-08-21T13:10:00.000Z"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 5,
+      "hasMore": false
+    },
+    "unreadCount": 3
+  }
+}
+```
+
+---
+
+### 3.2 Mark Notification as Read
+
+| | |
+|---|---|
+| **Method** | `PATCH` |
+| **Endpoint** | `/auth/notifications/:id/read` |
+| **Access** | **Private** |
+
+#### Response — `200 OK`
+```json
+{
+  "success": true,
+  "message": "Notification marked as read.",
+  "data": {
+    "notification": { "_id": "66c5a1f2e8b4c91a7d1e7001", "read": true }
+  }
+}
+```
+
+**`404 Not Found`** — Notification doesn't exist or belongs to another user.
+
+---
+
+### 3.3 Mark All Notifications as Read
+
+| | |
+|---|---|
+| **Method** | `PATCH` |
+| **Endpoint** | `/auth/notifications/read-all` |
+| **Access** | **Private** |
+
+#### Response — `200 OK`
+```json
+{
+  "success": true,
+  "message": "All notifications marked as read.",
+  "data": { "updated": 3 }
+}
+```
+
+---
+
+## 🔔 Push Notification System
+
+The push notification system uses the **Expo Push Notification Service** as the
+relay — no Firebase Admin SDK or service account keys required.
+
+### Flow
+```
+Mobile App
+  └─ getExpoPushTokenAsync()     → Expo servers → token stored in User.expoPushToken
+
+Backend (on like / comment)
+  └─ POST https://exp.host/push/send
+       { to: expoPushToken, title, body, data: { type, postId, senderId } }
+     → Expo servers → FCM (Android) / APNs (iOS) → Device 🔔
+```
+
+### Notification Payload Data
+```json
+{
+  "type": "like",
+  "postId": "66c5a1f2e8b4c91a7d1e5001",
+  "senderId": "66c5a1f2e8b4c91a7d1e4002",
+  "senderUsername": "alexm"
+}
+```
+The mobile app reads `data.postId` on tap → navigates to `/(protected)/post/[id]`.
+
+### Rules
+- Authors are **never** notified of their own likes/comments
+- Push is **fire-and-forget** — a delivery failure never breaks the API response
+- Token validation uses `Expo.isExpoPushToken()` before sending
+- Notifications are also **persisted in MongoDB** for the in-app feed
 
 ---
 
@@ -642,10 +800,9 @@ Toggles a like on the post. Idempotent — calling twice on the same post un-lik
 | `400 Bad Request` | Validation Error | Malformed body, missing required fields, invalid format |
 | `401 Unauthorized` | Auth Failure | Missing token, invalid credentials, expired access token |
 | `403 Forbidden` | Forbidden | Refresh token reuse detected (all sessions revoked) |
-| `404 Not Found` | Not Found | User, post, or resource does not exist |
+| `404 Not Found` | Not Found | User, post, notification, or resource does not exist |
 | `409 Conflict` | Duplicate | Email or username already taken |
 | `500 Internal Server Error` | Server Error | Unhandled database or runtime exception |
-| `501 Not Implemented` | Not Implemented | Endpoint is defined but not yet built |
 
 ---
 

@@ -1,13 +1,161 @@
+import { Notification } from "../models/Notification.js";
+import { User } from "../models/User.js";
+import { Post } from "../models/Post.js";
 import { AppError } from "../utils/app-error.js";
+import { sendPushNotification } from "./expo-push.service.js";
+import { pagination } from "../utils/pagination.js";
+import type { PaginatedResponse } from "../types/post.types.js";
+import type { NotificationDocument, NotificationType } from "../models/Notification.js";
 
-export const getNotifications = async (_userId: string) => {
-  throw new AppError("Notifications are not yet implemented.", 501);
+// ─── Create + Send Notification ───────────────────────────────────────────────
+
+/**
+ * Creates a persisted notification and fires a push notification to the
+ * recipient's device. Safe to call fire-and-forget (never throws).
+ *
+ * @param recipientId - Post author who receives the notification
+ * @param senderId    - User who performed the action (like / comment)
+ * @param type        - 'like' | 'comment'
+ * @param postId      - The post that was interacted with
+ */
+export const createAndSendNotification = async (
+  recipientId: string,
+  senderId: string,
+  type: NotificationType,
+  postId: string
+): Promise<void> => {
+  try {
+    // Never notify yourself
+    if (recipientId === senderId) return;
+
+    // Fetch sender profile + recipient's push token in parallel
+    const [sender, recipient, post] = await Promise.all([
+      User.findById(senderId).select("username name avatar"),
+      User.findById(recipientId).select("expoPushToken").select("+expoPushToken"),
+      Post.findById(postId).select("content"),
+    ]);
+
+    if (!sender || !recipient) return;
+
+    // Persist notification to DB
+    await Notification.create({
+      recipient: recipientId,
+      sender: senderId,
+      type,
+      post: postId,
+      read: false,
+    });
+
+    // Build human-readable push payload
+    const senderHandle = `@${sender.username}`;
+    const title =
+      type === "like"
+        ? `${senderHandle} liked your post`
+        : `${senderHandle} commented on your post`;
+
+    const postPreview = post?.content
+      ? `"${post.content.slice(0, 60)}${post.content.length > 60 ? "…" : ""}"`
+      : "";
+
+    const body =
+      type === "like"
+        ? postPreview || "Your post is getting attention! ❤️"
+        : postPreview || "Someone replied to your post 💬";
+
+    // Send push only if the recipient has a registered token
+    if (recipient.expoPushToken) {
+      await sendPushNotification(recipient.expoPushToken, {
+        title,
+        body,
+        data: {
+          type,
+          postId,
+          senderId,
+          senderUsername: sender.username,
+        },
+        badge: 1,
+        sound: "default",
+        channelId: "default",
+      });
+    }
+  } catch (error) {
+    // Never crash the main request because of a notification failure
+    console.error("[NotificationService] createAndSendNotification failed:", error);
+  }
 };
 
-export const markNotificationRead = async (_notificationId: string, _userId: string) => {
-  throw new AppError("Notifications are not yet implemented.", 501);
+// ─── Save Device Token ─────────────────────────────────────────────────────────
+
+/**
+ * Saves (or updates) the Expo push token for the authenticated user.
+ */
+export const saveDeviceToken = async (
+  userId: string,
+  expoPushToken: string
+): Promise<void> => {
+  await User.findByIdAndUpdate(userId, { expoPushToken });
 };
 
-export const markAllNotificationsRead = async (_userId: string) => {
-  throw new AppError("Notifications are not yet implemented.", 501);
+// ─── Get Notifications (paginated) ────────────────────────────────────────────
+
+export const getNotifications = async (
+  userId: string,
+  page = 1,
+  limit = 20
+): Promise<PaginatedResponse<NotificationDocument>> => {
+  const { page: safePage, limit: safeLimit } = pagination(page, limit);
+
+  const [items, total] = await Promise.all([
+    Notification.find({ recipient: userId })
+      .populate("sender", "id username name avatar avatarUrl")
+      .populate("post", "id content images")
+      .sort({ createdAt: -1 })
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
+      .lean(),
+    Notification.countDocuments({ recipient: userId }),
+  ]);
+
+  return {
+    items: items as unknown as NotificationDocument[],
+    pagination: {
+      page: safePage,
+      limit: safeLimit,
+      total,
+      hasMore: safePage * safeLimit < total,
+    },
+  };
+};
+
+// ─── Unread Count ──────────────────────────────────────────────────────────────
+
+export const getUnreadCount = async (userId: string): Promise<number> => {
+  return Notification.countDocuments({ recipient: userId, read: false });
+};
+
+// ─── Mark Single Notification Read ────────────────────────────────────────────
+
+export const markNotificationRead = async (
+  notificationId: string,
+  userId: string
+): Promise<NotificationDocument> => {
+  const notification = await Notification.findOneAndUpdate(
+    { _id: notificationId, recipient: userId },
+    { read: true },
+    { new: true }
+  );
+  if (!notification) {
+    throw new AppError("Notification not found.", 404);
+  }
+  return notification;
+};
+
+// ─── Mark All Notifications Read ──────────────────────────────────────────────
+
+export const markAllNotificationsRead = async (userId: string): Promise<{ updated: number }> => {
+  const result = await Notification.updateMany(
+    { recipient: userId, read: false },
+    { read: true }
+  );
+  return { updated: result.modifiedCount };
 };

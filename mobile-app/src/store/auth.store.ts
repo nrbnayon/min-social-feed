@@ -3,6 +3,11 @@ import type { RegisterInput, User } from "@/types";
 import { authService } from "@/services/auth.service";
 import { storage } from "@/lib/storage";
 import { CURRENT_USER } from "@/data/seed";
+import {
+  getStoredPushToken,
+  savePushTokenToBackend,
+} from "@/services/pushNotifications";
+import { API_URL } from "@/constants/config";
 
 type AuthState = {
   user: User | null;
@@ -17,7 +22,28 @@ type AuthState = {
   updateUser: (updates: Partial<User>) => void;
 };
 
+/**
+ * After a REAL login/register, reads the locally cached Expo push token
+ * and uploads it to the backend so it's linked to the real DB user.
+ *
+ * This is intentionally fire-and-forget — a push failure must never
+ * block or fail the authentication flow.
+ */
+async function uploadCachedPushToken(authToken: string): Promise<void> {
+  try {
+    const expoPushToken = await getStoredPushToken();
+    if (expoPushToken) {
+      await savePushTokenToBackend(expoPushToken, authToken, API_URL);
+    }
+  } catch {
+    // Silent — push failure should never affect login
+  }
+}
+
 export const useAuth = create<AuthState>((set, get) => ({
+  // Default to demo user so the app is immediately usable.
+  // Push notifications will NOT work in demo mode — that's intentional.
+  // They only work after a real login/register (real DB user + token pair).
   user: CURRENT_USER,
   token: "demo_token_authenticated",
   isAuthenticated: true,
@@ -29,7 +55,6 @@ export const useAuth = create<AuthState>((set, get) => ({
       if (token) {
         set({ token, isAuthenticated: true, user: CURRENT_USER, isLoading: false });
       } else {
-        // Default to demo authenticated state for instant preview
         set({ token: "demo_token_authenticated", isAuthenticated: true, user: CURRENT_USER, isLoading: false });
       }
     } catch {
@@ -39,34 +64,46 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   login: async (email: string, password?: string) => {
     try {
+      // Real backend login — creates a session for a real MongoDB user
       const result = await authService.login(email, password || "password123");
       await storage.setToken(result.token);
       set({ user: result.user, token: result.token, isAuthenticated: true, isLoading: false });
-    } catch (e) {
-      // If backend offline, log in locally with demo/input profile
+
+      // Upload push token to backend — now correctly linked to this real user
+      void uploadCachedPushToken(result.token);
+    } catch {
+      // Backend offline — fall back to local demo profile
       const localUser: User = {
         ...CURRENT_USER,
         email,
         username: email.split("@")[0] || "user",
         name: email.split("@")[0] || "User",
       };
-      await storage.setToken("local_token_" + Date.now());
-      set({ user: localUser, token: "local_token", isAuthenticated: true, isLoading: false });
+      const localToken = "local_token_" + Date.now();
+      await storage.setToken(localToken);
+      // Note: push token is NOT uploaded here — no real DB user exists
+      set({ user: localUser, token: localToken, isAuthenticated: true, isLoading: false });
     }
   },
 
   loginDemo: async () => {
-    await storage.setToken("demo_token_authenticated");
-    set({ user: CURRENT_USER, token: "demo_token_authenticated", isAuthenticated: true, isLoading: false });
+    // Demo mode — push notifications intentionally disabled (no real DB user)
+    const demoToken = "demo_token_authenticated";
+    await storage.setToken(demoToken);
+    set({ user: CURRENT_USER, token: demoToken, isAuthenticated: true, isLoading: false });
   },
 
   register: async (input: RegisterInput) => {
     try {
+      // Real backend registration — creates a new MongoDB user document
       const result = await authService.register(input);
       await storage.setToken(result.token);
       set({ user: result.user, token: result.token, isAuthenticated: true, isLoading: false });
-    } catch (e) {
-      // Local fallback
+
+      // Upload push token to backend — linked to the newly created user
+      void uploadCachedPushToken(result.token);
+    } catch {
+      // Local fallback — no real DB user, push will not work
       const newUser: User = {
         id: "u_" + Date.now(),
         name: input.name || input.username,
@@ -81,8 +118,9 @@ export const useAuth = create<AuthState>((set, get) => ({
         verified: false,
         joinedDate: "Just now",
       };
-      await storage.setToken("local_token_" + Date.now());
-      set({ user: newUser, token: "local_token", isAuthenticated: true, isLoading: false });
+      const localToken = "local_token_" + Date.now();
+      await storage.setToken(localToken);
+      set({ user: newUser, token: localToken, isAuthenticated: true, isLoading: false });
     }
   },
 

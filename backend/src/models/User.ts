@@ -15,6 +15,7 @@ export interface IUser {
   followers: Types.ObjectId[];
   following: Types.ObjectId[];
   refreshTokens: string[];
+  expoPushToken?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -122,6 +123,11 @@ const userSchema = new Schema<UserDocument>(
       type: [String],
       select: false,
       default: [],
+    },
+    expoPushToken: {
+      type: String,
+      select: false,
+      default: null,
     },
   },
   {

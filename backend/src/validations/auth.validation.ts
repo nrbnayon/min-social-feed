@@ -74,3 +74,10 @@ export const editProfileSchema = z.object({
     .string()
     .optional(),
 });
+
+export const deviceTokenSchema = z.object({
+  expoPushToken: z
+    .string()
+    .min(1, "Expo push token is required")
+    .startsWith("ExponentPushToken[", "Must be a valid Expo push token"),
+});

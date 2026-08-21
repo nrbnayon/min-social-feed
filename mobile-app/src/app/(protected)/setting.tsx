@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Switch,
   Platform,
+  Linking,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,6 +17,8 @@ import { useToastStore } from "@/store/useToastStore";
 import { Avatar } from "@/components/Shared/Avatar";
 import { LogoutModal } from "@/components/Shared/LogoutModal";
 import { formatCount, appShadow } from "@/lib/utils";
+import { requestNotificationPermissions } from "@/services/pushNotifications";
+import * as Notifications from "expo-notifications";
 import {
   Moon,
   Sun,
@@ -39,6 +42,13 @@ export default function SettingsScreen() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
 
+  // Sync toggle with actual OS permission status on mount
+  useEffect(() => {
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setPushNotifications(status === "granted");
+    });
+  }, []);
+
   const userId = user?.id || "u0";
   const userPosts = posts.filter(
     (p) =>
@@ -53,12 +63,24 @@ export default function SettingsScreen() {
     router.replace("/(auth)/login");
   };
 
-  const handleToggleNotifications = (val: boolean) => {
-    setPushNotifications(val);
-    showToast(
-      val ? "Notifications enabled" : "Notifications muted",
-      val ? "🔔" : "🔕"
-    );
+  const handleToggleNotifications = async (val: boolean) => {
+    if (val) {
+      // Request permission — updates OS setting and returns result
+      const granted = await requestNotificationPermissions();
+      setPushNotifications(granted);
+      if (granted) {
+        showToast("Notifications enabled", "🔔");
+      } else {
+        showToast("Permission denied — open Settings to enable", "⚠️");
+        // Open OS Settings so user can grant manually
+        await Linking.openSettings();
+      }
+    } else {
+      // Cannot revoke programmatically — direct user to Settings
+      setPushNotifications(false);
+      showToast("Open Settings to disable notifications", "🔕");
+      await Linking.openSettings();
+    }
   };
 
   return (

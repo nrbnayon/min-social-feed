@@ -4,6 +4,7 @@ import { Comment } from "../models/Comment.js";
 import { User } from "../models/User.js";
 import { AppError } from "../utils/app-error.js";
 import { pagination } from "../utils/pagination.js";
+import { createAndSendNotification } from "./notification.service.js";
 import type { CreatePostDTO, CreateCommentDTO, PaginatedResponse } from "../types/post.types.js";
 import type { PostDocument } from "../models/Post.js";
 import type { CommentDocument } from "../models/Comment.js";
@@ -24,7 +25,6 @@ export const listPosts = async (
   let authorFilter: Record<string, unknown> = {};
   if (username) {
     const author = await User.findOne({ username: username.toLowerCase().trim() }).select("_id");
-    // If the username doesn't exist return an empty list — don't 404
     if (!author) {
       return {
         items: [],
@@ -57,9 +57,6 @@ export const listPosts = async (
 
 // ─── Create Post ──────────────────────────────────────────────────────────────
 
-/**
- * Creates a new post and returns it with the author populated.
- */
 export const createPost = async (
   authorId: string,
   dto: CreatePostDTO
@@ -69,8 +66,6 @@ export const createPost = async (
     content: dto.content,
     images: dto.images ?? [],
   });
-
-  // Populate author so the response includes name/avatar
   await post.populate("author", "id username name avatar avatarUrl verified");
   return post;
 };
@@ -78,14 +73,14 @@ export const createPost = async (
 // ─── Toggle Like ──────────────────────────────────────────────────────────────
 
 /**
- * Toggles a like on a post. Creates it if absent, removes it if present.
- * Updates the denormalized `likeCount` counter on the post atomically.
+ * Toggles a like on a post.
+ * Fires a push notification to the post author when liked (not unliked).
  */
 export const toggleLike = async (
   postId: string,
   userId: string
 ): Promise<{ liked: boolean; likeCount: number }> => {
-  const post = await Post.findById(postId).select("likeCount");
+  const post = await Post.findById(postId).select("likeCount author");
   if (!post) {
     throw new AppError("Post not found.", 404);
   }
@@ -108,22 +103,31 @@ export const toggleLike = async (
     { $inc: { likeCount: 1 } },
     { new: true }
   ).select("likeCount");
+
+  // Fire-and-forget push to the post author
+  void createAndSendNotification(
+    post.author.toString(),
+    userId,
+    "like",
+    postId
+  );
+
   return { liked: true, likeCount: updated?.likeCount ?? 1 };
 };
 
 // ─── Add Comment ──────────────────────────────────────────────────────────────
 
 /**
- * Adds a comment to a post. Validates post existence first.
- * Updates the denormalized `commentCount` counter on the post atomically.
+ * Adds a comment to a post.
+ * Fires a push notification to the post author.
  */
 export const addComment = async (
   postId: string,
   authorId: string,
   dto: CreateCommentDTO
 ): Promise<CommentDocument> => {
-  const postExists = await Post.exists({ _id: postId });
-  if (!postExists) {
+  const post = await Post.findById(postId).select("author");
+  if (!post) {
     throw new AppError("Post not found.", 404);
   }
 
@@ -133,5 +137,14 @@ export const addComment = async (
   ]);
 
   await comment.populate("author", "id username name avatar avatarUrl verified");
+
+  // Fire-and-forget push to the post author
+  void createAndSendNotification(
+    post.author.toString(),
+    authorId,
+    "comment",
+    postId
+  );
+
   return comment;
 };

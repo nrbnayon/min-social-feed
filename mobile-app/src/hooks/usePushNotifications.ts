@@ -1,87 +1,75 @@
 import { useState, useEffect, useRef } from "react";
-import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
-
-import Constants from "expo-constants";
-
-import { Platform } from "react-native";
+import { router } from "expo-router";
 
 export interface PushNotificationState {
-  expoPushToken?: Notifications.ExpoPushToken;
-  notification?: Notifications.Notification;
+  notification: Notifications.Notification | undefined;
+  unreadCount: number;
+  clearUnreadCount: () => void;
 }
 
+/**
+ * usePushNotifications
+ *
+ * Attaches foreground and response listeners.
+ * The setNotificationHandler is already called at module level
+ * in pushNotifications.ts — we MUST NOT call it here again.
+ *
+ * Handles deep-link routing when the user taps a notification:
+ *   type === 'like' | 'comment'  →  navigate to /(protected)/post/[postId]
+ */
 export const usePushNotifications = (): PushNotificationState => {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldPlaySound: false,
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldSetBadge: false,
-    }),
-  });
-
-  const [expoPushToken, setExpoPushToken] = useState<
-    Notifications.ExpoPushToken | undefined
-  >();
-
   const [notification, setNotification] = useState<
     Notifications.Notification | undefined
-  >();
+  >(undefined);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const notificationListener = useRef<Notifications.Subscription | null>(null);
   const responseListener = useRef<Notifications.Subscription | null>(null);
 
-  async function registerForPushNotificationsAsync() {
-    let token;
-    if (Device.isDevice) {
-      const { status: existingStatus } =
-        await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-
-      if (existingStatus !== "granted") {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== "granted") {
-        alert("Failed to get push token for push notification");
-        return;
-      }
-
-      token = await Notifications.getExpoPushTokenAsync({
-        projectId: Constants.expoConfig?.extra?.eas.projectId,
-      });
-    } else {
-      alert("Must be using a physical device for Push notifications");
-    }
-
-    if (Platform.OS === "android") {
-      Notifications.setNotificationChannelAsync("default", {
-        name: "default",
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#FF231F7C",
-      });
-    }
-
-    return token;
-  }
-
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      setExpoPushToken(token);
+    // ── Foreground notification received ──────────────────────────────────────
+    notificationListener.current = Notifications.addNotificationReceivedListener(
+      (incomingNotification) => {
+        setNotification(incomingNotification);
+        setUnreadCount((prev) => prev + 1);
+      }
+    );
+
+    // ── User tapped a notification (foreground or background) ─────────────────
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data as Record<
+          string,
+          unknown
+        >;
+
+        const postId = data?.postId as string | undefined;
+        const type = data?.type as "like" | "comment" | undefined;
+
+        if (postId && (type === "like" || type === "comment")) {
+          // Navigate to the post that was liked or commented on
+          router.push(`/(protected)/post/${postId}` as any);
+        }
+      }
+    );
+
+    // ── Handle notification that launched the app from killed state ───────────
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (!response) return;
+      const data = response.notification.request.content.data as Record<
+        string,
+        unknown
+      >;
+      const postId = data?.postId as string | undefined;
+      const type = data?.type as "like" | "comment" | undefined;
+      if (postId && (type === "like" || type === "comment")) {
+        // Small delay to let navigation stack mount
+        setTimeout(() => {
+          router.push(`/(protected)/post/${postId}` as any);
+        }, 500);
+      }
     });
-
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        setNotification(notification);
-      });
-
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log(response);
-      });
 
     return () => {
       notificationListener.current?.remove();
@@ -89,8 +77,7 @@ export const usePushNotifications = (): PushNotificationState => {
     };
   }, []);
 
-  return {
-    expoPushToken,
-    notification,
-  };
+  const clearUnreadCount = () => setUnreadCount(0);
+
+  return { notification, unreadCount, clearUnreadCount };
 };
