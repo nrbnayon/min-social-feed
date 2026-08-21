@@ -1,2 +1,30 @@
-export type AuthResponse = { user: { id: string; username: string; email: string; avatarUrl?: string }; token: string };
-export type RegisterInput = { username: string; email: string; password: string };
+export interface SafeUser {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  avatarUrl?: string;
+  coverImage?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  verified: boolean;
+  followers: number;
+  following: number;
+  followersList?: string[];
+  followingList?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface AuthResponse {
+  user: SafeUser;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+}
