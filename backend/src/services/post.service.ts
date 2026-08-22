@@ -240,9 +240,30 @@ export const addComment = async (
     }
   }
 
-  const replyToUserId = dto.replyTo && mongoose.Types.ObjectId.isValid(dto.replyTo)
-    ? dto.replyTo
-    : parentCommentAuthorId;
+  // Resolve replyTo user ID (accepts ObjectId, username, or parentComment author fallback)
+  let resolvedReplyToUserId: string | null = null;
+  if (dto.replyTo) {
+    if (mongoose.Types.ObjectId.isValid(dto.replyTo)) {
+      resolvedReplyToUserId = dto.replyTo;
+    } else {
+      const u = await User.findOne({ username: dto.replyTo.replace(/^@/, "") }).select("_id");
+      if (u) resolvedReplyToUserId = u._id.toString();
+    }
+  }
+
+  if (!resolvedReplyToUserId && parentCommentAuthorId) {
+    resolvedReplyToUserId = parentCommentAuthorId;
+  }
+
+  // If still not resolved, check if content starts with an @mention
+  if (!resolvedReplyToUserId) {
+    const mentionMatch = dto.content.match(/^@([a-zA-Z0-9_.-]+)/);
+    if (mentionMatch) {
+      const mentionedUsername = mentionMatch[1];
+      const u = await User.findOne({ username: mentionedUsername }).select("_id");
+      if (u) resolvedReplyToUserId = u._id.toString();
+    }
+  }
 
   const [comment, updatedPost] = await Promise.all([
     Comment.create({
@@ -250,7 +271,7 @@ export const addComment = async (
       author: authorId,
       content: dto.content,
       parentId: dto.parentId || null,
-      replyTo: replyToUserId || null,
+      replyTo: resolvedReplyToUserId || null,
     }),
     Post.findByIdAndUpdate(
       postId,
@@ -275,7 +296,7 @@ export const addComment = async (
   const postAuthorId = (post.author?._id ?? post.author)?.toString();
 
   // 1. If replying to someone's comment (and not self-reply), send a targeted "replied to your comment" notification!
-  const targetRecipientId = replyToUserId || parentCommentAuthorId;
+  const targetRecipientId = resolvedReplyToUserId || parentCommentAuthorId;
   if (targetRecipientId && targetRecipientId !== actorId) {
     void createAndSendNotification(
       targetRecipientId,

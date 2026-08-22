@@ -43,11 +43,11 @@ export function CommentThreadItem({
   const authorName = comment.name || comment.author?.username || comment.username || "User";
   const authorUsername = (comment.username || comment.author?.username || "user").replace(/^@/, "");
   const authorAvatar = comment.avatar || comment.author?.avatarUrl;
-  const authorId = comment.userId || comment.author?.id || authorUsername;
+  const authorId = comment.userId || comment.author?.id || (comment.author as any)?._id || authorUsername;
   const isPostAuthor = postAuthorId && (authorId === postAuthorId || authorUsername === postAuthorId);
 
   const replies = comment.replies || [];
-  const visibleReplies = showAllReplies ? replies : replies.slice(0, 1);
+  const visibleReplies = showAllReplies ? replies : (replies.length <= 3 ? replies : replies.slice(0, 2));
   const hiddenReplyCount = replies.length - visibleReplies.length;
 
   const handleUserClick = (uid: string) => {

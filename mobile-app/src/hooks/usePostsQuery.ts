@@ -54,7 +54,7 @@ export function normalizeComment(raw: any): Comment {
 
 /**
  * Organizes a flat list of comments into top-level comments with nested replies.
- * Robustly deduplicates any duplicate IDs.
+ * Robustly deduplicates IDs and maps any nested reply to its root parent thread.
  */
 export function buildThreadedComments(comments: Comment[]): Comment[] {
   if (!comments || !comments.length) return [];
@@ -71,16 +71,38 @@ export function buildThreadedComments(comments: Comment[]): Comment[] {
     deduped.push(c);
   });
 
+  const commentMap = new Map<string, Comment>();
+  deduped.forEach((c) => {
+    const id = c.id || c._id || "";
+    if (id) commentMap.set(id, c);
+  });
+
+  // Helper to find root parent comment ID
+  const getRootParentId = (comment: Comment): string | null => {
+    if (!comment.parentId) return null;
+    let currentParentId: string | null = comment.parentId;
+    const visited = new Set<string>();
+    while (currentParentId && !visited.has(currentParentId)) {
+      visited.add(currentParentId);
+      const parent = commentMap.get(currentParentId);
+      if (!parent || !parent.parentId) {
+        return currentParentId;
+      }
+      currentParentId = parent.parentId;
+    }
+    return currentParentId;
+  };
+
   const topLevel: Comment[] = [];
   const repliesMap = new Map<string, Comment[]>();
 
   deduped.forEach((c) => {
-    const parentId = c.parentId;
-    if (parentId) {
-      if (!repliesMap.has(parentId)) {
-        repliesMap.set(parentId, []);
+    const rootParentId = getRootParentId(c);
+    if (rootParentId && commentMap.has(rootParentId) && rootParentId !== (c.id || c._id)) {
+      if (!repliesMap.has(rootParentId)) {
+        repliesMap.set(rootParentId, []);
       }
-      repliesMap.get(parentId)!.push(c);
+      repliesMap.get(rootParentId)!.push(c);
     } else {
       topLevel.push({ ...c, replies: [] });
     }
@@ -246,7 +268,6 @@ export function useLikeMutation(currentUserId: string) {
     },
 
     onSuccess: (result, postId) => {
-      showToast(result.liked ? "Post liked" : "Post unliked", result.liked ? "❤️" : "🤍");
       // Reconcile server likeCount
       qc.setQueriesData<{ items: Post[] }>({ queryKey: postKeys.all }, (old) => {
         if (!old) return old;
@@ -264,7 +285,6 @@ export function useLikeMutation(currentUserId: string) {
       context?.snapshots?.forEach(([queryKey, data]) => {
         qc.setQueryData(queryKey, data);
       });
-      showToast("Failed to like post", "❌");
     },
   });
 }
@@ -277,7 +297,6 @@ export function useLikeMutation(currentUserId: string) {
  */
 export function useCommentMutation(currentUser: any) {
   const qc = useQueryClient();
-  const showToast = useToastStore.getState().showToast;
 
   return useMutation({
     mutationFn: ({
@@ -376,14 +395,12 @@ export function useCommentMutation(currentUser: any) {
       });
       // Invalidate single post cache if any
       qc.invalidateQueries({ queryKey: ["post", postId] });
-      showToast("Comment posted", "💬");
     },
 
     onError: (_err, _vars, context) => {
       context?.snapshots?.forEach(([queryKey, data]) => {
         qc.setQueryData(queryKey, data);
       });
-      showToast("Failed to post comment", "❌");
     },
   });
 }

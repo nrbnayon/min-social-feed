@@ -131,6 +131,15 @@ api.interceptors.response.use(
         api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
         originalRequest.headers.Authorization = `Bearer ${accessToken}`;
 
+        // Ensure payload is not double-stringified on retry
+        if (typeof originalRequest.data === "string") {
+          try {
+            originalRequest.data = JSON.parse(originalRequest.data);
+          } catch {
+            // Keep as is if not json
+          }
+        }
+
         processQueue(null, accessToken);
         return api(originalRequest);
       } catch (refreshErr) {
