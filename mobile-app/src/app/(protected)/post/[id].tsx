@@ -16,12 +16,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsQuery, useLikeMutation, useCommentMutation, normalizePost } from "@/hooks/usePostsQuery";
+import {
+  usePostsQuery,
+  useLikeMutation,
+  useCommentMutation,
+  normalizePost,
+  buildThreadedComments,
+} from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { Avatar } from "@/components/Shared/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ShareModal } from "@/components/feed/ShareModal";
+import { CommentThreadItem, type ReplyTarget } from "@/components/comments/CommentThreadItem";
 import { Gradients } from "@/constants/theme";
 import { appShadow, formatCount } from "@/lib/utils";
 import { postService } from "@/services/post.service";
@@ -33,7 +40,6 @@ import {
   Share2,
   BadgeCheck,
   ChevronDown,
-  CornerDownRight,
   X,
 } from "lucide-react-native";
 
@@ -52,7 +58,7 @@ export default function PostDetailScreen() {
   const commentMutation = useCommentMutation(currentUser);
 
   const [commentText, setCommentText] = useState("");
-  const [replyingTo, setReplyingTo] = useState<{ username: string } | null>(null);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const inputRef = useRef<TextInput>(null);
   const [sharePost, setSharePost] = useState<Post | null>(null);
 
@@ -60,21 +66,22 @@ export default function PostDetailScreen() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Try to find post in the feed cache first
+  // Try to find post in the feed cache as an initial fallback
   const cachedPost = posts.find((p) => (p.id || p._id) === id);
 
-  // If not in cache (e.g. navigated from a notification), fetch it directly
+  // Query the post directly with Socket.io real-time sync
   const { data: fetchedPost, isLoading: isFetchingPost } = useQuery({
     queryKey: ["post", id],
     queryFn: async () => {
       const raw = await postService.getById(id!);
       return normalizePost(raw);
     },
-    enabled: !!id && !cachedPost,
-    staleTime: 30 * 1000,
+    enabled: !!id,
+    staleTime: 60 * 1000,
   });
 
-  const post = cachedPost ?? fetchedPost;
+  // Prefer the freshest directly fetched post data, fallback to feed cache
+  const post = fetchedPost ?? cachedPost;
 
   const postId = post?.id || post?._id || "";
   const isLiked = post && (post.likes || []).includes(currentUserId);
@@ -97,10 +104,10 @@ export default function PostDetailScreen() {
     }).catch(() => { });
   };
 
-  const handleReply = (targetUsername: string) => {
-    setReplyingTo({ username: targetUsername });
+  const handleReply = (target: ReplyTarget) => {
+    setReplyTarget(target);
     setCommentText((prev) => {
-      const mention = `@${targetUsername} `;
+      const mention = `@${target.username} `;
       if (prev.startsWith(mention)) return prev;
       return `${mention}${prev.replace(/^@\w+\s*/, "")}`;
     });
@@ -110,19 +117,27 @@ export default function PostDetailScreen() {
   };
 
   const handleCancelReply = () => {
-    if (replyingTo) {
-      setCommentText((prev) => prev.replace(new RegExp(`^@${replyingTo.username}\\s*`), ""));
-      setReplyingTo(null);
+    if (replyTarget) {
+      setCommentText((prev) => prev.replace(new RegExp(`^@${replyTarget.username}\\s*`), ""));
+      setReplyTarget(null);
     }
   };
 
   const handleSendComment = async () => {
     if (!commentText.trim() || !id || commentMutation.isPending) return;
     const text = commentText.trim();
+    const parentId = replyTarget?.parentId;
+    const replyTo = replyTarget?.authorId;
+
     setCommentText("");
-    setReplyingTo(null);
+    setReplyTarget(null);
     try {
-      await commentMutation.mutateAsync({ postId: id, content: text });
+      await commentMutation.mutateAsync({
+        postId: id,
+        content: text,
+        parentId,
+        replyTo,
+      });
       setVisibleCount((prev) => Math.max(prev, (post?.comments?.length || 0) + 1));
     } catch {
       // Handled in mutation
@@ -170,9 +185,10 @@ export default function PostDetailScreen() {
     );
   }
 
-  const allComments = post.comments || [];
-  const displayedComments = allComments.slice(0, visibleCount);
-  const remainingCount = allComments.length - displayedComments.length;
+  const rawComments = post.comments || [];
+  const threadedComments = buildThreadedComments(rawComments);
+  const displayedComments = threadedComments.slice(0, visibleCount);
+  const remainingCount = threadedComments.length - displayedComments.length;
 
   return (
     <KeyboardAvoidingView
@@ -180,38 +196,29 @@ export default function PostDetailScreen() {
       style={{
         flex: 1,
         backgroundColor: colors.background,
+        paddingTop: insets.top + 8,
       }}
     >
-      {/* 🌟 Top Navigation Bar */}
+      {/* 🧭 Top Bar Navigation */}
       <View
         style={{
-          paddingTop: insets.top + (Platform.OS === "ios" ? 4 : 10),
-          paddingBottom: 10,
-          paddingHorizontal: 16,
-          backgroundColor: isDark ? "rgba(9, 10, 18, 0.95)" : "rgba(248, 250, 252, 0.95)",
+          backgroundColor: colors.background,
           borderBottomColor: colors.border,
           borderBottomWidth: 1,
         }}
-        className="flex-row items-center justify-between"
+        className="px-4 pb-3 flex-row items-center justify-between"
       >
         <BackButton onPress={() => router.back()} />
         <Text
           style={{ color: colors.text }}
           className="text-lg font-bold tracking-tight"
         >
-          Post Details
+          Post
         </Text>
-        <TouchableOpacity
-          onPress={handleShare}
-          activeOpacity={0.7}
-          className="p-1"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Share2 size={20} color={colors.text} />
-        </TouchableOpacity>
+        <View style={{ width: 38 }} />
       </View>
 
-      {/* 📜 Main Post + Comments List */}
+      {/* 📜 Content List */}
       <FlatList
         data={displayedComments}
         keyExtractor={(item, index) => item.id || item._id || String(index)}
@@ -223,7 +230,7 @@ export default function PostDetailScreen() {
         onEndReachedThreshold={0.4}
         ListHeaderComponent={
           <View>
-            {/* 📝 Main Post (Seamless Edge-to-Edge view, no card border) */}
+            {/* 📝 Main Post */}
             <View
               style={{
                 backgroundColor: colors.background,
@@ -232,7 +239,6 @@ export default function PostDetailScreen() {
               }}
               className="px-5 pt-4 pb-4"
             >
-              {/* Author Row */}
               <TouchableOpacity
                 onPress={() =>
                   router.push(
@@ -247,11 +253,6 @@ export default function PostDetailScreen() {
                   size={46}
                   gradientBorder={true}
                   name={authorName}
-                  onPress={() =>
-                    router.push(
-                      `/(protected)/user/${post.userId || post.author?.id || authorUsername}` as any
-                    )
-                  }
                 />
                 <View className="ml-3 flex-1">
                   <View className="flex-row items-center gap-1.5">
@@ -274,7 +275,6 @@ export default function PostDetailScreen() {
                 </View>
               </TouchableOpacity>
 
-              {/* Full Text Content */}
               <Text
                 style={{
                   color: colors.text,
@@ -286,7 +286,6 @@ export default function PostDetailScreen() {
                 {post.content}
               </Text>
 
-              {/* Post Action Footer */}
               <View
                 style={{
                   borderTopColor: isDark ? "rgba(255, 255, 255, 0.08)" : colors.border,
@@ -295,14 +294,11 @@ export default function PostDetailScreen() {
                 }}
                 className="flex-row items-center justify-between"
               >
-                {/* Left: Like & Comment Counts */}
                 <View className="flex-row items-center gap-6">
-                  {/* Like Button */}
                   <TouchableOpacity
                     onPress={handleLike}
                     activeOpacity={0.7}
                     className="flex-row items-center gap-2"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Heart
                       size={20}
@@ -320,7 +316,6 @@ export default function PostDetailScreen() {
                     </Text>
                   </TouchableOpacity>
 
-                  {/* Comments Count */}
                   <View className="flex-row items-center gap-2">
                     <MessageSquare size={20} color={colors.text3} />
                     <Text
@@ -335,82 +330,47 @@ export default function PostDetailScreen() {
                   </View>
                 </View>
 
-                {/* Right: Share */}
+                {/* Right: Share Button */}
                 <TouchableOpacity
                   onPress={handleShare}
                   activeOpacity={0.7}
-                  className="flex-row items-center gap-1.5"
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  className="p-1 rounded-full"
                 >
-                  <Share2 size={18} color={colors.text3} />
-                  <Text
-                    style={{ color: colors.text3 }}
-                    className="text-sm font-semibold"
-                  >
-                    Share
-                  </Text>
+                  <Share2 size={19} color={colors.text3} />
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* 💬 Comments Section Header */}
+            {/* 💬 Comments Section Heading */}
             <View
               style={{
+                backgroundColor: colors.background,
                 borderBottomColor: colors.border,
-                backgroundColor: isDark ? "#0D0F18" : "#F1F5F9",
+                borderBottomWidth: 1,
               }}
-              className="px-5 py-3 border-b flex-row items-center justify-between"
+              className="px-5 py-3 flex-row items-center justify-between"
             >
-              <View className="flex-row items-center gap-2">
-                <MessageSquare size={16} color={colors.brand2} />
-                <Text
-                  style={{ color: colors.text }}
-                  className="text-sm font-bold"
-                >
-                  Comments
-                </Text>
-              </View>
+              <Text
+                style={{ color: colors.text }}
+                className="text-sm font-bold tracking-tight uppercase"
+              >
+                Comments
+              </Text>
               <View
-                style={{ backgroundColor: colors.surface2 }}
+                style={{
+                  backgroundColor: colors.surface2,
+                }}
                 className="px-2.5 py-0.5 rounded-full"
               >
                 <Text
                   style={{ color: colors.text3 }}
                   className="text-xs font-bold"
                 >
-                  {allComments.length}
+                  {rawComments.length}
                 </Text>
               </View>
             </View>
-          </View>
-        }
-        ListEmptyComponent={
-          <View className="px-6 py-10 items-center">
-            <View
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 24,
-                backgroundColor: colors.surface2,
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: 10,
-              }}
-            >
-              <MessageSquare size={22} color={colors.text3} />
-            </View>
-            <Text
-              style={{ color: colors.text }}
-              className="text-sm font-bold text-center mb-1"
-            >
-              No comments yet
-            </Text>
-            <Text
-              style={{ color: colors.text3 }}
-              className="text-xs text-center"
-            >
-              Be the first to share your thoughts below! 💬
-            </Text>
           </View>
         }
         ListFooterComponent={
@@ -441,106 +401,31 @@ export default function PostDetailScreen() {
                 )}
               </TouchableOpacity>
             </View>
-          ) : allComments.length > PAGE_SIZE ? (
+          ) : threadedComments.length > PAGE_SIZE ? (
             <View className="py-4 items-center">
               <Text
                 style={{ color: colors.text3 }}
                 className="text-xs font-medium"
               >
-                All {allComments.length} comments loaded
+                All {rawComments.length} comments loaded
               </Text>
             </View>
           ) : null
         }
-        renderItem={({ item }) => {
-          const authorName = item.name || item.author?.username || item.username || "User";
-          const authorUsername = (item.username || item.author?.username || "user").replace(/^@/, "");
-          const authorAvatar = item.avatar || item.author?.avatarUrl;
-          const commenterId = item.userId || item.author?.id || authorUsername;
-
-          const handleCommenterPress = () => {
-            router.push(`/(protected)/user/${commenterId}` as any);
-          };
-
-          return (
-            <View
-              style={{
-                borderBottomColor: colors.border,
-                borderBottomWidth: 1,
-              }}
-              className="px-5 py-3.5 flex-row items-start"
-            >
-              <Avatar
-                src={authorAvatar}
-                size={36}
-                gradientBorder={true}
-                name={authorName}
-                onPress={handleCommenterPress}
-              />
-              <View className="flex-1 ml-3">
-                <View className="flex-row items-center justify-between mb-1">
-                  <TouchableOpacity
-                    onPress={handleCommenterPress}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={{ color: colors.text }}
-                      className="text-sm font-bold"
-                    >
-                      {authorName}
-                    </Text>
-                  </TouchableOpacity>
-                  <Text
-                    style={{ color: colors.text3 }}
-                    className="text-xs"
-                  >
-                    {item.time || "recently"}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  onPress={handleCommenterPress}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={{ color: colors.text3 }}
-                    className="text-xs mb-1.5"
-                  >
-                    @{authorUsername}
-                  </Text>
-                </TouchableOpacity>
-
-                <Text
-                  style={{ color: colors.text }}
-                  className="text-sm leading-5 mb-2"
-                >
-                  {item.text || item.content}
-                </Text>
-
-                {/* Reply Button Row */}
-                <View className="flex-row items-center gap-3">
-                  <Pressable
-                    onPress={() => handleReply(authorUsername)}
-                    hitSlop={8}
-                    className="flex-row items-center gap-1 py-1"
-                  >
-                    <CornerDownRight size={13} color={colors.brand2} />
-                    <Text
-                      style={{ color: colors.brand2 }}
-                      className="text-xs font-bold"
-                    >
-                      Reply
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <View className="px-4 pt-3">
+            <CommentThreadItem
+              comment={item}
+              postAuthorId={post.userId || post.author?.id || post.author?.username}
+              onReply={handleReply}
+              onUserPress={(uid) => router.push(`/(protected)/user/${uid}` as any)}
+            />
+          </View>
+        )}
       />
 
       {/* 💬 Replying Bar (if user tapped reply) */}
-      {replyingTo && (
+      {replyTarget && (
         <View
           style={{
             backgroundColor: isDark ? "rgba(99, 102, 241, 0.12)" : "rgba(99, 102, 241, 0.08)",
@@ -549,7 +434,7 @@ export default function PostDetailScreen() {
           className="px-4 py-2 flex-row items-center justify-between border-t"
         >
           <Text style={{ color: colors.text2 }} className="text-xs">
-            Replying to <Text style={{ color: colors.brand2, fontWeight: "700" }}>@{replyingTo.username}</Text>
+            Replying to <Text style={{ color: colors.brand2, fontWeight: "700" }}>@{replyTarget.username}</Text>
           </Text>
           <Pressable onPress={handleCancelReply} hitSlop={8} className="p-1">
             <X size={14} color={colors.text3} />
@@ -561,7 +446,7 @@ export default function PostDetailScreen() {
       <View
         style={{
           backgroundColor: colors.surface,
-          borderTopColor: replyingTo ? "transparent" : colors.border,
+          borderTopColor: replyTarget ? "transparent" : colors.border,
           paddingBottom: Math.max(insets.bottom, 12),
           paddingTop: 10,
           paddingHorizontal: 14,
@@ -579,7 +464,7 @@ export default function PostDetailScreen() {
           style={{
             flex: 1,
             backgroundColor: colors.surface2,
-            borderColor: replyingTo ? colors.brand : colors.border,
+            borderColor: replyTarget ? colors.brand : colors.border,
             height: 44,
           }}
           className="flex-row items-center px-3.5 rounded-full border"
@@ -588,7 +473,7 @@ export default function PostDetailScreen() {
             ref={inputRef}
             value={commentText}
             onChangeText={setCommentText}
-            placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Post your reply..."}
+            placeholder={replyTarget ? `Reply to @${replyTarget.username}...` : "Post your reply..."}
             placeholderTextColor={colors.text3}
             style={{
               flex: 1,

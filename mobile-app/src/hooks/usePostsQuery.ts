@@ -22,6 +22,7 @@ export const postKeys = {
 
 export function normalizeComment(raw: any): Comment {
   const author = raw.author ?? {};
+  const replyTo = raw.replyTo ?? null;
   return {
     id: raw._id?.toString() ?? raw.id ?? "",
     _id: raw._id?.toString() ?? raw.id,
@@ -34,12 +35,64 @@ export function normalizeComment(raw: any): Comment {
     time: raw.createdAt ? formatTimeAgo(raw.createdAt) : "just now",
     createdAt: raw.createdAt,
     likes: Array.isArray(raw.likes) ? raw.likes.length : (typeof raw.likes === "number" ? raw.likes : 0),
+    parentId: raw.parentId?.toString() ?? raw.parentId ?? null,
+    replyTo: replyTo
+      ? {
+          id: replyTo._id?.toString() ?? replyTo.id,
+          username: replyTo.username ?? "",
+          name: replyTo.name ?? replyTo.username ?? "",
+          avatarUrl: replyTo.avatar ?? replyTo.avatarUrl ?? "",
+        }
+      : null,
     author: {
       id: author._id?.toString() ?? author.id,
       username: author.username ?? "user",
       avatarUrl: author.avatarUrl ?? author.avatar ?? "",
     },
   };
+}
+
+/**
+ * Organizes a flat list of comments into top-level comments with nested replies.
+ * Robustly deduplicates any duplicate IDs.
+ */
+export function buildThreadedComments(comments: Comment[]): Comment[] {
+  if (!comments || !comments.length) return [];
+
+  // Deduplicate comments list by unique ID
+  const seenIds = new Set<string>();
+  const deduped: Comment[] = [];
+  comments.forEach((c) => {
+    const key = c.id || c._id || "";
+    if (key) {
+      if (seenIds.has(key)) return;
+      seenIds.add(key);
+    }
+    deduped.push(c);
+  });
+
+  const topLevel: Comment[] = [];
+  const repliesMap = new Map<string, Comment[]>();
+
+  deduped.forEach((c) => {
+    const parentId = c.parentId;
+    if (parentId) {
+      if (!repliesMap.has(parentId)) {
+        repliesMap.set(parentId, []);
+      }
+      repliesMap.get(parentId)!.push(c);
+    } else {
+      topLevel.push({ ...c, replies: [] });
+    }
+  });
+
+  return topLevel.map((parent) => {
+    const pId = parent.id || parent._id || "";
+    return {
+      ...parent,
+      replies: repliesMap.get(pId) || [],
+    };
+  });
 }
 
 // ─── Normalize backend post → app Post shape ──────────────────────────────────
@@ -118,6 +171,7 @@ export function usePostsQuery(username?: string) {
         items: result.items.map(normalizePost),
       };
     },
+    staleTime: 60 * 1000,
   });
 }
 
@@ -226,15 +280,24 @@ export function useCommentMutation(currentUser: any) {
   const showToast = useToastStore.getState().showToast;
 
   return useMutation({
-    mutationFn: ({ postId, content }: { postId: string; content: string }) =>
-      postService.comment(postId, content),
+    mutationFn: ({
+      postId,
+      content,
+      parentId,
+      replyTo,
+    }: {
+      postId: string;
+      content: string;
+      parentId?: string;
+      replyTo?: string;
+    }) => postService.comment(postId, content, parentId, replyTo),
 
-    onMutate: async ({ postId, content }) => {
+    onMutate: async ({ postId, content, parentId, replyTo }) => {
       await qc.cancelQueries({ queryKey: postKeys.all });
       const snapshots = qc.getQueriesData<{ items: Post[] }>({ queryKey: postKeys.all });
 
       const tempId = `c_temp_${Date.now()}`;
-      const optimisticComment = {
+      const optimisticComment: Comment = {
         id: tempId,
         userId: currentUser?.id ?? "",
         username: currentUser?.username ?? "",
@@ -244,6 +307,8 @@ export function useCommentMutation(currentUser: any) {
         content,
         time: "just now",
         likes: 0,
+        parentId: parentId ?? null,
+        replyTo: replyTo ? { id: replyTo, username: "" } : null,
       };
 
       qc.setQueriesData<{ items: Post[] }>({ queryKey: postKeys.all }, (old) => {
@@ -273,7 +338,8 @@ export function useCommentMutation(currentUser: any) {
           items: old.items.map((p) => {
             if ((p.id || p._id) !== postId) return p;
             const author = serverComment?.author ?? {};
-            const realComment = {
+            const replyTo = serverComment?.replyTo ?? null;
+            const realComment: Comment = {
               id: serverComment?._id?.toString() ?? context?.tempId ?? `c_${Date.now()}`,
               userId: author._id?.toString() ?? author.id ?? currentUser?.id ?? "",
               username: author.username ?? currentUser?.username ?? "",
@@ -283,16 +349,33 @@ export function useCommentMutation(currentUser: any) {
               content: serverComment?.content ?? "",
               time: "just now",
               likes: 0,
+              parentId: serverComment?.parentId?.toString() ?? null,
+              replyTo: replyTo
+                ? {
+                    id: replyTo._id?.toString() ?? replyTo.id,
+                    username: replyTo.username ?? "",
+                    name: replyTo.name ?? replyTo.username ?? "",
+                    avatarUrl: replyTo.avatar ?? replyTo.avatarUrl ?? "",
+                  }
+                : null,
             };
+            const filtered = (p.comments || []).filter((c) => c.id !== context?.tempId);
+            const exists = filtered.some(
+              (c) =>
+                (c.id && c.id === realComment.id) ||
+                (c._id && c._id === realComment.id)
+            );
+            const finalComments = exists ? filtered : [...filtered, realComment];
+
             return {
               ...p,
-              comments: (p.comments || []).map((c) =>
-                c.id === context?.tempId ? realComment : c
-              ),
+              comments: finalComments,
             };
           }),
         };
       });
+      // Invalidate single post cache if any
+      qc.invalidateQueries({ queryKey: ["post", postId] });
       showToast("Comment posted", "💬");
     },
 

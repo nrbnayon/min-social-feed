@@ -14,9 +14,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Post } from "@/types";
 import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
-import { useCommentMutation } from "@/hooks/usePostsQuery";
+import { useCommentMutation, buildThreadedComments } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
-import { X, Send, CornerDownRight } from "lucide-react-native";
+import { CommentThreadItem, type ReplyTarget } from "./CommentThreadItem";
+import { X, Send } from "lucide-react-native";
 import { router } from "expo-router";
 
 interface CommentSheetProps {
@@ -31,18 +32,19 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
   const commentMutation = useCommentMutation(currentUser);
 
   const [text, setText] = useState("");
-  const [replyingTo, setReplyingTo] = useState<{ username: string } | null>(null);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   if (!post) return null;
 
   const postId = post.id || post._id || "";
-  const comments = post.comments || [];
+  const rawComments = post.comments || [];
+  const threadedComments = buildThreadedComments(rawComments);
 
-  const handleReply = (targetUsername: string) => {
-    setReplyingTo({ username: targetUsername });
+  const handleReply = (target: ReplyTarget) => {
+    setReplyTarget(target);
     setText((prev) => {
-      const mention = `@${targetUsername} `;
+      const mention = `@${target.username} `;
       if (prev.startsWith(mention)) return prev;
       return `${mention}${prev.replace(/^@\w+\s*/, "")}`;
     });
@@ -52,18 +54,31 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
   };
 
   const handleCancelReply = () => {
-    if (replyingTo) {
-      setText((prev) => prev.replace(new RegExp(`^@${replyingTo.username}\\s*`), ""));
-      setReplyingTo(null);
+    if (replyTarget) {
+      setText((prev) => prev.replace(new RegExp(`^@${replyTarget.username}\\s*`), ""));
+      setReplyTarget(null);
     }
   };
 
   const handleSend = async () => {
     if (!text.trim()) return;
     const trimmed = text.trim();
-    setText(""); // Clear immediately for better UX
-    setReplyingTo(null);
-    await commentMutation.mutateAsync({ postId, content: trimmed });
+    const parentId = replyTarget?.parentId;
+    const replyTo = replyTarget?.authorId;
+
+    setText("");
+    setReplyTarget(null);
+    await commentMutation.mutateAsync({
+      postId,
+      content: trimmed,
+      parentId,
+      replyTo,
+    });
+  };
+
+  const handleUserPress = (userId: string) => {
+    onClose();
+    router.push(`/(protected)/user/${userId}` as any);
   };
 
   return (
@@ -94,7 +109,7 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <Text style={[styles.title, { color: colors.text }]}>
-              Comments ({comments.length})
+              Comments ({rawComments.length})
             </Text>
             <Pressable onPress={onClose} style={styles.closeBtn} hitSlop={10}>
               <X size={20} color={colors.text2} />
@@ -103,69 +118,29 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
 
           {/* Comment List */}
           <FlatList
-            data={comments}
+            data={threadedComments}
             keyExtractor={(item, index) => item.id || item._id || String(index)}
             contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyText, { color: colors.text3 }]}>
-                  No comments yet. Be the first to comment! 💬
+                  No comments yet. Be the first to start the conversation! 💬
                 </Text>
               </View>
             }
-            renderItem={({ item }) => {
-              const commenterUsername = (item.username || item.author?.username || "user").replace(/^@/, "");
-              const commenterId = item.userId || item.author?.id || commenterUsername;
-              const handleCommenterPress = () => {
-                onClose();
-                router.push(`/(protected)/user/${commenterId}` as any);
-              };
-
-              return (
-                <View style={styles.commentItem}>
-                  <Avatar
-                    src={item.avatar || item.author?.avatarUrl}
-                    size={36}
-                    name={item.name || item.username || item.author?.username}
-                    onPress={handleCommenterPress}
-                  />
-                  <View style={styles.commentBody}>
-                    <View style={styles.commentMetaRow}>
-                      <Pressable onPress={handleCommenterPress}>
-                        <Text style={[styles.commentUsername, { color: colors.text }]}>
-                          @{commenterUsername}
-                        </Text>
-                      </Pressable>
-                    </View>
-
-                    <Text style={[styles.commentText, { color: colors.text }]}>
-                      {item.text || item.content}
-                    </Text>
-
-                    {/* Action row with timestamp and Reply button */}
-                    <View style={styles.commentActionRow}>
-                      <Text style={[styles.commentTime, { color: colors.text3 }]}>
-                        {item.time || "just now"}
-                      </Text>
-                      <Pressable
-                        onPress={() => handleReply(commenterUsername)}
-                        hitSlop={8}
-                        style={styles.replyButton}
-                      >
-                        <CornerDownRight size={12} color={colors.brand2} />
-                        <Text style={[styles.replyButtonText, { color: colors.brand2 }]}>
-                          Reply
-                        </Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                </View>
-              );
-            }}
+            renderItem={({ item }) => (
+              <CommentThreadItem
+                comment={item}
+                postAuthorId={post.userId || post.author?.id || post.author?.username}
+                onReply={handleReply}
+                onUserPress={handleUserPress}
+              />
+            )}
           />
 
           {/* Replying Banner */}
-          {replyingTo && (
+          {replyTarget && (
             <View
               style={[
                 styles.replyingBar,
@@ -176,7 +151,7 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
               ]}
             >
               <Text style={[styles.replyingText, { color: colors.text2 }]}>
-                Replying to <Text style={{ color: colors.brand2, fontWeight: "700" }}>@{replyingTo.username}</Text>
+                Replying to <Text style={{ color: colors.brand2, fontWeight: "700" }}>@{replyTarget.username}</Text>
               </Text>
               <Pressable onPress={handleCancelReply} hitSlop={8} style={styles.cancelReplyBtn}>
                 <X size={14} color={colors.text3} />
@@ -189,7 +164,7 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
             style={[
               styles.inputRow,
               {
-                borderTopColor: colors.border,
+                borderTopColor: replyTarget ? "transparent" : colors.border,
                 backgroundColor: colors.surface,
                 paddingBottom: Math.max(insets.bottom, 12),
               },
@@ -200,20 +175,20 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
               ref={inputRef}
               value={text}
               onChangeText={setText}
-              placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment..."}
+              placeholder={replyTarget ? `Reply to @${replyTarget.username}...` : "Add a comment..."}
               placeholderTextColor={colors.text3}
               style={[
                 styles.textInput,
                 {
                   backgroundColor: colors.surface2,
-                  borderColor: replyingTo ? colors.brand : colors.border,
+                  borderColor: replyTarget ? colors.brand : colors.border,
                   color: colors.text,
                 },
               ]}
             />
             <Pressable
               onPress={handleSend}
-              disabled={!text.trim()}
+              disabled={!text.trim() || commentMutation.isPending}
               style={[
                 styles.sendBtn,
                 {
@@ -241,7 +216,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheetContainer: {
-    maxHeight: "80%",
+    maxHeight: "85%",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderTopWidth: 1,
@@ -271,8 +246,9 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   listContent: {
-    padding: 20,
-    gap: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   emptyState: {
     paddingVertical: 40,
@@ -282,48 +258,6 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 14,
     textAlign: "center",
-  },
-  commentItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  commentBody: {
-    flex: 1,
-  },
-  commentMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 3,
-  },
-  commentUsername: {
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  commentText: {
-    fontSize: 13.5,
-    lineHeight: 19,
-  },
-  commentActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 5,
-  },
-  commentTime: {
-    fontSize: 11,
-  },
-  replyButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 4,
-  },
-  replyButtonText: {
-    fontSize: 12,
-    fontWeight: "700",
   },
   replyingBar: {
     flexDirection: "row",
@@ -343,7 +277,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     gap: 10,
   },

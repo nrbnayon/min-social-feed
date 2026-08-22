@@ -3,6 +3,7 @@ import { app } from "./app.js";
 import { connectDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
+import { initSocketServer } from "./services/socket.service.js";
 import mongoose from "mongoose";
 
 let server: Server | null = null;
@@ -24,6 +25,9 @@ const startServer = async (maxRetries = 10, retryDelayMs = 3000): Promise<void> 
         server = app.listen(env.port, "0.0.0.0", () => {
           logger.info(`🚀 API server is running on http://localhost:${env.port} and http://0.0.0.0:${env.port}`);
           logger.info(`Environment: ${env.nodeEnv} | Node.js: ${process.version}`);
+          if (server) {
+            initSocketServer(server);
+          }
           resolve();
         });
 

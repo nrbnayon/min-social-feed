@@ -27,6 +27,14 @@ export type Comment = {
   time: string;
   createdAt?: string;
   likes: number;
+  parentId?: string | null;
+  replyTo?: {
+    id?: string;
+    username?: string;
+    name?: string;
+    avatarUrl?: string;
+  } | null;
+  replies?: Comment[];
   author?: {
     id?: string;
     username: string;
@@ -78,6 +86,7 @@ export type Notification = {
   id: string;
   _id?: string;
   type: NotificationType;
+  subType?: "comment" | "reply";
   from: string;
   fromId: string;
   fromAvatar: string;

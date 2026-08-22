@@ -7,6 +7,8 @@ export interface CreatePostDTO {
 
 export interface CreateCommentDTO {
   content: string;
+  parentId?: string;
+  replyTo?: string;
 }
 
 // ─── Pagination ───────────────────────────────────────────────────────────────

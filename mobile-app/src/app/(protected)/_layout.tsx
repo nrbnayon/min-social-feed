@@ -2,9 +2,11 @@ import React from "react";
 import { Tabs } from "expo-router";
 import { CustomTabBar } from "@/components/Shared/CustomTabBar";
 import { useAppTheme } from "@/context/ThemeContext";
+import { useRealtimeEvents } from "@/hooks/useRealtimeEvents";
 
 export default function ProtectedLayout() {
   const { colors, isDark } = useAppTheme();
+  useRealtimeEvents();
 
   return (
     <Tabs

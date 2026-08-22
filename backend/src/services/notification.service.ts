@@ -5,6 +5,7 @@ import { AppError } from "../utils/app-error.js";
 import { sendPushNotification } from "./expo-push.service.js";
 import { pagination } from "../utils/pagination.js";
 import { logger } from "../utils/logger.js";
+import { emitNewNotification } from "./socket.service.js";
 import type { PaginatedResponse } from "../types/post.types.js";
 import type { NotificationDocument, NotificationType } from "../models/Notification.js";
 
@@ -14,16 +15,18 @@ import type { NotificationDocument, NotificationType } from "../models/Notificat
  * Creates a persisted notification and fires a push notification to the
  * recipient's device. Safe to call fire-and-forget (never throws).
  *
- * @param recipientId - Post author who receives the notification
- * @param senderId    - User who performed the action (like / comment)
+ * @param recipientId - User who receives the notification
+ * @param senderId    - User who performed the action (like / comment / reply)
  * @param type        - 'like' | 'comment'
  * @param postId      - The post that was interacted with
+ * @param context     - Optional extra metadata (e.g. subType: 'reply', commentSnippet)
  */
 export const createAndSendNotification = async (
   recipientId: string,
   senderId: string,
   type: NotificationType,
-  postId: string
+  postId: string,
+  context?: { subType?: "comment" | "reply"; commentSnippet?: string }
 ): Promise<void> => {
   try {
     const rId = String(recipientId);
@@ -53,36 +56,53 @@ export const createAndSendNotification = async (
       recipient: rId,
       sender: sId,
       type,
+      subType: context?.subType ?? "comment",
       post: pId,
       read: false,
     });
 
-    logger.info(`[NotificationService] Notification created (id: ${savedNotification._id}, type: ${type}, from: @${sender.username} -> to: ${rId})`);
+    await savedNotification.populate([
+      { path: "sender", select: "id username name avatar avatarUrl" },
+      { path: "post", select: "id content images" },
+    ]);
+
+    // Emit real-time notification to the recipient's room
+    emitNewNotification(rId, savedNotification.toObject());
+
+    const isReply = context?.subType === "reply";
+    logger.info(`[NotificationService] Notification created & emitted via Socket (id: ${savedNotification._id}, type: ${type}${isReply ? " [reply]" : ""}, from: @${sender.username} -> to: ${rId})`);
 
     // Build human-readable push payload
     const senderHandle = `@${sender.username}`;
     const title =
       type === "like"
         ? `${senderHandle} liked your post`
+        : isReply
+        ? `${senderHandle} replied to your comment`
         : `${senderHandle} commented on your post`;
 
-    const postPreview = post?.content
+    const snippet = context?.commentSnippet
+      ? `"${context.commentSnippet.slice(0, 60)}${context.commentSnippet.length > 60 ? "…" : ""}"`
+      : post?.content
       ? `"${post.content.slice(0, 60)}${post.content.length > 60 ? "…" : ""}"`
       : "";
 
     const body =
       type === "like"
-        ? postPreview || "Your post is getting attention! ❤️"
-        : postPreview || "Someone replied to your post 💬";
+        ? snippet || "Your post is getting attention! ❤️"
+        : isReply
+        ? snippet || "Someone replied to your comment 💬"
+        : snippet || "Someone replied to your post 💬";
 
     // Send push only if the recipient has a registered token
     if (recipient.expoPushToken) {
-      logger.info(`[NotificationService] Sending ${type} push to token: ${recipient.expoPushToken}`);
+      logger.info(`[NotificationService] Sending ${type}${isReply ? " (reply)" : ""} push to token: ${recipient.expoPushToken}`);
       await sendPushNotification(recipient.expoPushToken, {
         title,
         body,
         data: {
           type,
+          subType: context?.subType ?? "comment",
           postId: pId,
           senderId: sId,
           senderUsername: sender.username,

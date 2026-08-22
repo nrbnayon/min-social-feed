@@ -60,6 +60,8 @@ export function normalizeNotification(raw: any): Notification {
     text:
       raw.type === "like"
         ? "liked your post"
+        : raw.subType === "reply"
+        ? "replied to your comment"
         : raw.type === "comment"
         ? "commented on your post"
         : raw.text ?? "",
@@ -82,7 +84,7 @@ export function useNotificationsQuery() {
         unreadCount: result.unreadCount,
       };
     },
-    staleTime: 15 * 1000, // Refresh more often than posts
+    staleTime: 60 * 1000,
   });
 }
 

@@ -1,11 +1,13 @@
 import { Document, model, Schema, Types } from "mongoose";
 
 export type NotificationType = "like" | "comment";
+export type NotificationSubType = "comment" | "reply";
 
 export interface NotificationDocument extends Document {
   recipient: Types.ObjectId;
   sender: Types.ObjectId;
   type: NotificationType;
+  subType?: NotificationSubType;
   post: Types.ObjectId;
   read: boolean;
   createdAt: Date;
@@ -30,6 +32,11 @@ const notificationSchema = new Schema<NotificationDocument>(
       enum: ["like", "comment"],
       required: true,
     },
+    subType: {
+      type: String,
+      enum: ["comment", "reply"],
+      default: "comment",
+    },
     post: {
       type: Schema.Types.ObjectId,
       ref: "Post",
@@ -46,7 +53,7 @@ const notificationSchema = new Schema<NotificationDocument>(
 
 // Paginated notifications feed for a user, newest first
 notificationSchema.index({ recipient: 1, createdAt: -1 });
-// Fast unread count query
 notificationSchema.index({ recipient: 1, read: 1 });
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 export const Notification = model<NotificationDocument>("Notification", notificationSchema);

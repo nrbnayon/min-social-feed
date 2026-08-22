@@ -66,12 +66,12 @@ export const postService = {
       .then((res) => res.data.data),
 
   /**
-   * Add a comment to a post.
+   * Add a comment or reply to a post.
    * POST /api/posts/:id/comments
    */
-  comment: (id: string, content: string) =>
+  comment: (postId: string, content: string, parentId?: string, replyTo?: string) =>
     api
-      .post<{ data: { comment: any } }>(`/posts/${id}/comments`, { content })
+      .post<{ data: { comment: any } }>(`/posts/${postId}/comments`, { content, parentId, replyTo })
       .then((res) => res.data.data.comment),
 };
 

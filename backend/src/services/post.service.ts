@@ -2,10 +2,12 @@ import mongoose from "mongoose";
 import { Post } from "../models/Post.js";
 import { Like } from "../models/Like.js";
 import { Comment } from "../models/Comment.js";
+import { Notification } from "../models/Notification.js";
 import { User } from "../models/User.js";
 import { AppError } from "../utils/app-error.js";
 import { pagination } from "../utils/pagination.js";
 import { createAndSendNotification } from "./notification.service.js";
+import { emitPostLiked, emitPostCommented } from "./socket.service.js";
 import type { CreatePostDTO, CreateCommentDTO, PaginatedResponse } from "../types/post.types.js";
 import type { PostDocument } from "../models/Post.js";
 import type { CommentDocument } from "../models/Comment.js";
@@ -51,6 +53,7 @@ export const listPosts = async (
     Like.find({ post: { $in: postIds } }).lean(),
     Comment.find({ post: { $in: postIds } })
       .populate("author", "id username name avatar avatarUrl verified")
+      .populate("replyTo", "id username name avatar avatarUrl")
       .sort({ createdAt: 1 })
       .lean(),
   ]);
@@ -113,6 +116,7 @@ export const getPostById = async (id: string): Promise<PostDocument> => {
     Like.find({ post: post._id }).lean(),
     Comment.find({ post: post._id })
       .populate("author", "id username name avatar avatarUrl verified")
+      .populate("replyTo", "id username name avatar avatarUrl")
       .sort({ createdAt: 1 })
       .lean(),
   ]);
@@ -165,13 +169,20 @@ export const toggleLike = async (
   const existing = await Like.findOne({ post: postId, user: userId });
 
   if (existing) {
-    await existing.deleteOne();
+    // 1. Delete Like document from DB
+    await Like.findOneAndDelete({ post: postId, user: userId });
+
+    // 2. Also remove any dangling like notification from DB
+    await Notification.deleteMany({ post: postId, sender: userId, type: "like" });
+
     const updated = await Post.findByIdAndUpdate(
       postId,
       { $inc: { likeCount: -1 } },
       { returnDocument: "after" }
     ).select("likeCount");
-    return { liked: false, likeCount: Math.max(0, updated?.likeCount ?? 0) };
+    const count = Math.max(0, updated?.likeCount ?? 0);
+    emitPostLiked({ postId, liked: false, likeCount: count, userId });
+    return { liked: false, likeCount: count };
   }
 
   await Like.create({ post: postId, user: userId });
@@ -180,6 +191,9 @@ export const toggleLike = async (
     { $inc: { likeCount: 1 } },
     { returnDocument: "after" }
   ).select("likeCount");
+  const count = updated?.likeCount ?? 1;
+
+  emitPostLiked({ postId, liked: true, likeCount: count, userId });
 
   // Fire-and-forget push to the post author (only if not self-like)
   const postAuthorId = (post.author?._id ?? post.author)?.toString();
@@ -193,14 +207,15 @@ export const toggleLike = async (
     );
   }
 
-  return { liked: true, likeCount: updated?.likeCount ?? 1 };
+  return { liked: true, likeCount: count };
 };
 
-// ─── Add Comment ──────────────────────────────────────────────────────────────
+// ─── Add Comment / Reply ──────────────────────────────────────────────────────
 
 /**
- * Adds a comment to a post.
- * Fires a push notification to the post author.
+ * Adds a comment or a threaded reply to a post.
+ * If this is a reply to another comment, fires a targeted notification to the
+ * parent comment author. Also notifies the post author if different.
  */
 export const addComment = async (
   postId: string,
@@ -216,22 +231,73 @@ export const addComment = async (
     throw new AppError("Post not found.", 404);
   }
 
-  const [comment] = await Promise.all([
-    Comment.create({ post: postId, author: authorId, content: dto.content }),
-    Post.findByIdAndUpdate(postId, { $inc: { commentCount: 1 } }),
+  // Resolve parent comment author if this is a reply
+  let parentCommentAuthorId: string | null = null;
+  if (dto.parentId && mongoose.Types.ObjectId.isValid(dto.parentId)) {
+    const parentComment = await Comment.findById(dto.parentId).select("author");
+    if (parentComment) {
+      parentCommentAuthorId = (parentComment.author?._id ?? parentComment.author)?.toString() ?? null;
+    }
+  }
+
+  const replyToUserId = dto.replyTo && mongoose.Types.ObjectId.isValid(dto.replyTo)
+    ? dto.replyTo
+    : parentCommentAuthorId;
+
+  const [comment, updatedPost] = await Promise.all([
+    Comment.create({
+      post: postId,
+      author: authorId,
+      content: dto.content,
+      parentId: dto.parentId || null,
+      replyTo: replyToUserId || null,
+    }),
+    Post.findByIdAndUpdate(
+      postId,
+      { $inc: { commentCount: 1 } },
+      { returnDocument: "after" }
+    ).select("commentCount"),
   ]);
 
-  await comment.populate("author", "id username name avatar avatarUrl verified");
+  await comment.populate([
+    { path: "author", select: "id username name avatar avatarUrl verified" },
+    { path: "replyTo", select: "id username name avatar avatarUrl" },
+  ]);
 
-  // Fire-and-forget push to the post author (only if not self-comment)
-  const postAuthorId = (post.author?._id ?? post.author)?.toString();
+  // Emit real-time comment event to all connected clients
+  emitPostCommented({
+    postId,
+    comment: comment.toObject(),
+    commentCount: updatedPost?.commentCount ?? 1,
+  });
+
   const actorId = String(authorId);
-  if (postAuthorId && postAuthorId !== actorId) {
+  const postAuthorId = (post.author?._id ?? post.author)?.toString();
+
+  // 1. If replying to someone's comment (and not self-reply), send a targeted "replied to your comment" notification!
+  const targetRecipientId = replyToUserId || parentCommentAuthorId;
+  if (targetRecipientId && targetRecipientId !== actorId) {
+    void createAndSendNotification(
+      targetRecipientId,
+      actorId,
+      "comment",
+      postId,
+      { subType: "reply", commentSnippet: dto.content }
+    );
+  }
+
+  // 2. Also notify post author if they are not the commenter AND not already notified as targetRecipient
+  if (
+    postAuthorId &&
+    postAuthorId !== actorId &&
+    postAuthorId !== targetRecipientId
+  ) {
     void createAndSendNotification(
       postAuthorId,
       actorId,
       "comment",
-      postId
+      postId,
+      { subType: "comment", commentSnippet: dto.content }
     );
   }
 
