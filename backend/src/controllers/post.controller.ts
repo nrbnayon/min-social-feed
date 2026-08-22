@@ -79,7 +79,11 @@ export const commentPost: RequestHandler = async (request, response, next) => {
   try {
     const postId = String(request.params.id);
     const authorId = request.user!._id.toString();
-    const comment = await addComment(postId, authorId, { content: request.body.content });
+    const comment = await addComment(postId, authorId, {
+      content: request.body.content,
+      parentId: request.body.parentId,
+      replyTo: request.body.replyTo,
+    });
     return sendSuccess(response, { comment }, "Comment added.", 201);
   } catch (error) {
     next(error);

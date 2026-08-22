@@ -14,11 +14,10 @@ import { useToastStore } from "@/store/useToastStore";
 import {
   Copy,
   Share,
-  Bookmark,
-  Repeat,
-  Send,
   X,
 } from "lucide-react-native";
+
+import * as Linking from "expo-linking";
 
 interface ShareModalProps {
   post: Post | null;
@@ -32,35 +31,36 @@ export function ShareModal({ post, onClose }: ShareModalProps) {
 
   if (!post) return null;
 
-  const handleCopyLink = () => {
+  const postId = post.id || post._id || "";
+  const postUrl = Linking.createURL(`/(protected)/post/${postId}`);
+
+  const handleCopyLink = async () => {
     onClose();
-    showToast("Link copied to clipboard!", "🔗");
+    try {
+      await NativeShare.share({
+        title: `Post by @${post.username || "user"}`,
+        message: postUrl,
+        url: postUrl,
+      });
+    } catch {
+      showToast("Link copied!", "🔗");
+    }
   };
 
   const handleNativeShare = async () => {
     onClose();
     try {
       await NativeShare.share({
-        message: `${post.content}\n\nShared from MiniSocial by @${post.username || "user"}`,
+        title: `Post by @${post.username || "user"}`,
+        message: `"${post.content}"\n\nShared from MiniSocial by @${post.username || "user"}\n\nOpen post: ${postUrl}`,
+        url: postUrl,
       });
     } catch {}
-  };
-
-  const handleBookmarkAction = () => {
-    onClose();
-    showToast("Saved to bookmarks!", "🔖");
-  };
-
-  const handleRepostAction = () => {
-    onClose();
-    showToast("Reposted to your feed!", "🔁");
   };
 
   const actions = [
     { label: "Copy Link", icon: Copy, onPress: handleCopyLink },
     { label: "Share via...", icon: Share, onPress: handleNativeShare },
-    { label: "Repost", icon: Repeat, onPress: handleRepostAction },
-    { label: "Save Post", icon: Bookmark, onPress: handleBookmarkAction },
   ];
 
   return (

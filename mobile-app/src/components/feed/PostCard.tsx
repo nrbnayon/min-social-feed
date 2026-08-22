@@ -7,6 +7,7 @@ import {
   Share as NativeShare,
 } from "react-native";
 import { router } from "expo-router";
+import * as Linking from "expo-linking";
 import type { Post } from "@/types";
 import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
@@ -62,8 +63,11 @@ export function PostCard({
     if (onSharePress) {
       onSharePress(post);
     } else {
+      const postUrl = Linking.createURL(`/(protected)/post/${postId}`);
       NativeShare.share({
-        message: `${post.content}\n\nPosted by @${authorUsername} on MiniSocial`,
+        title: `Post by @${authorUsername}`,
+        message: `"${post.content}"\n\nPosted by @${authorUsername} on MiniSocial\n\nOpen post: ${postUrl}`,
+        url: postUrl,
       }).catch(() => { });
     }
   };

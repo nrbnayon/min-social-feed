@@ -47,7 +47,7 @@ export function CommentThreadItem({
   const isPostAuthor = postAuthorId && (authorId === postAuthorId || authorUsername === postAuthorId);
 
   const replies = comment.replies || [];
-  const visibleReplies = showAllReplies ? replies : (replies.length <= 3 ? replies : replies.slice(0, 2));
+  const visibleReplies = showAllReplies ? replies : replies.slice(0, 1);
   const hiddenReplyCount = replies.length - visibleReplies.length;
 
   const handleUserClick = (uid: string) => {

@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Post } from "@/types";
 import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
-import { useCommentMutation, buildThreadedComments } from "@/hooks/usePostsQuery";
+import { useCommentMutation, buildThreadedComments, usePostsQuery } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { CommentThreadItem, type ReplyTarget } from "./CommentThreadItem";
 import { X, Send } from "lucide-react-native";
@@ -35,10 +35,13 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
   const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
   const inputRef = useRef<TextInput>(null);
 
+  const { data: postsData } = usePostsQuery();
+
   if (!post) return null;
 
   const postId = post.id || post._id || "";
-  const rawComments = post.comments || [];
+  const livePost = postsData?.items.find((p) => (p.id || p._id) === postId) || post;
+  const rawComments = livePost.comments || [];
   const threadedComments = buildThreadedComments(rawComments);
 
   const handleReply = (target: ReplyTarget) => {

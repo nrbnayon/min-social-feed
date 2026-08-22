@@ -23,6 +23,12 @@ export const postKeys = {
 export function normalizeComment(raw: any): Comment {
   const author = raw.author ?? {};
   const replyTo = raw.replyTo ?? null;
+  const rawParentId = raw.parentId?._id?.toString() ?? raw.parentId?.toString() ?? raw.parentId;
+  const parentId =
+    rawParentId && rawParentId !== "null" && rawParentId !== "undefined"
+      ? String(rawParentId)
+      : null;
+
   return {
     id: raw._id?.toString() ?? raw.id ?? "",
     _id: raw._id?.toString() ?? raw.id,
@@ -34,8 +40,8 @@ export function normalizeComment(raw: any): Comment {
     content: raw.content ?? raw.text ?? "",
     time: raw.createdAt ? formatTimeAgo(raw.createdAt) : "just now",
     createdAt: raw.createdAt,
-    likes: Array.isArray(raw.likes) ? raw.likes.length : (typeof raw.likes === "number" ? raw.likes : 0),
-    parentId: raw.parentId?.toString() ?? raw.parentId ?? null,
+    likes: Array.isArray(raw.likes) ? raw.likes.length : typeof raw.likes === "number" ? raw.likes : 0,
+    parentId,
     replyTo: replyTo
       ? {
           id: replyTo._id?.toString() ?? replyTo.id,

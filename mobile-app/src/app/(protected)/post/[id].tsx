@@ -407,7 +407,7 @@ export default function PostDetailScreen() {
                 style={{ color: colors.text3 }}
                 className="text-xs font-medium"
               >
-                All {rawComments.length} comments loaded
+                All {rawComments.length} comments
               </Text>
             </View>
           ) : null
