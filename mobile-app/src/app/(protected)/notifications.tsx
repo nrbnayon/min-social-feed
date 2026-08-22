@@ -77,8 +77,11 @@ export default function NotificationsScreen() {
     if (!notif.read) {
       markReadMutation.mutate(notif.id || notif._id || "");
     }
+    // Navigate to the post if we have a postId, else to the sender's profile
     if (notif.postId) {
-      router.push(`/(protected)/post/${notif.postId}`);
+      router.push(`/(protected)/post/${notif.postId}` as any);
+    } else if (notif.fromId) {
+      router.push(`/(protected)/user/${notif.fromId}` as any);
     }
   };
 

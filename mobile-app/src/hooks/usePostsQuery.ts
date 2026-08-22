@@ -9,7 +9,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { postService } from "@/services/post.service";
 import { useToastStore } from "@/store/useToastStore";
-import type { Post } from "@/types";
+import type { Post, Comment } from "@/types";
 
 // ─── Query Keys ───────────────────────────────────────────────────────────────
 
@@ -18,10 +18,51 @@ export const postKeys = {
   list: (username?: string) => ["posts", "list", username ?? "all"] as const,
 };
 
+// ─── Normalize backend comment → app Comment shape ────────────────────────────
+
+export function normalizeComment(raw: any): Comment {
+  const author = raw.author ?? {};
+  return {
+    id: raw._id?.toString() ?? raw.id ?? "",
+    _id: raw._id?.toString() ?? raw.id,
+    userId: author._id?.toString() ?? author.id ?? raw.user?.toString() ?? "",
+    username: author.username ?? raw.username ?? "user",
+    name: author.name ?? author.username ?? raw.name ?? "User",
+    avatar: author.avatar ?? author.avatarUrl ?? raw.avatar ?? "",
+    text: raw.content ?? raw.text ?? "",
+    content: raw.content ?? raw.text ?? "",
+    time: raw.createdAt ? formatTimeAgo(raw.createdAt) : "just now",
+    createdAt: raw.createdAt,
+    likes: Array.isArray(raw.likes) ? raw.likes.length : (typeof raw.likes === "number" ? raw.likes : 0),
+    author: {
+      id: author._id?.toString() ?? author.id,
+      username: author.username ?? "user",
+      avatarUrl: author.avatarUrl ?? author.avatar ?? "",
+    },
+  };
+}
+
 // ─── Normalize backend post → app Post shape ──────────────────────────────────
 
 export function normalizePost(raw: any): Post {
   const author = raw.author ?? {};
+  const likesList: string[] = Array.isArray(raw.likes)
+    ? raw.likes
+        .map((l: any) =>
+          typeof l === "object"
+            ? l.user?.toString() || l._id?.toString() || l.id?.toString() || ""
+            : l.toString()
+        )
+        .filter(Boolean)
+    : [];
+
+  const commentsList: Comment[] = Array.isArray(raw.comments)
+    ? raw.comments.map(normalizeComment)
+    : [];
+
+  const likeCount = typeof raw.likeCount === "number" ? raw.likeCount : likesList.length;
+  const commentCount = typeof raw.commentCount === "number" ? raw.commentCount : commentsList.length;
+
   return {
     id: raw._id?.toString() ?? raw.id ?? "",
     _id: raw._id?.toString() ?? raw.id,
@@ -34,10 +75,10 @@ export function normalizePost(raw: any): Post {
     image: raw.images?.[0] ?? undefined,
     time: raw.createdAt ?? "",
     timeAgo: raw.createdAt ? formatTimeAgo(raw.createdAt) : "just now",
-    likes: [],
-    likeCount: raw.likeCount ?? 0,
-    comments: [],
-    commentCount: raw.commentCount ?? 0,
+    likes: likesList,
+    likeCount,
+    comments: commentsList,
+    commentCount,
     shares: 0,
     bookmarks: [],
     views: 0,

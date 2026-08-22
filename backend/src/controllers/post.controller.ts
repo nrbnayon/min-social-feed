@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { listPosts, createPost, toggleLike, addComment } from "../services/post.service.js";
+import { listPosts, getPostById, createPost, toggleLike, addComment } from "../services/post.service.js";
 import { sendSuccess } from "../utils/api-response.js";
 
 // ─── GET /api/posts ────────────────────────────────────────────────────────────
@@ -16,6 +16,20 @@ export const getPosts: RequestHandler = async (request, response, next) => {
 
     const result = await listPosts(page, limit, username);
     return sendSuccess(response, result, "Posts fetched successfully.", 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── GET /api/posts/:id ────────────────────────────────────────────────────────
+
+/**
+ * Get a single post by ID with all likes and comments.
+ */
+export const getPostByIdController: RequestHandler = async (request, response, next) => {
+  try {
+    const post = await getPostById(String(request.params.id));
+    return sendSuccess(response, { post }, "Post fetched successfully.", 200);
   } catch (error) {
     next(error);
   }

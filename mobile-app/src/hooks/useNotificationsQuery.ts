@@ -31,16 +31,32 @@ function formatTimeAgo(dateStr: string): string {
 }
 
 export function normalizeNotification(raw: any): Notification {
-  const actor = raw.actor ?? {};
+  // Backend populates the sender field (not actor)
+  const sender = raw.sender ?? raw.actor ?? {};
+
+  // post can be a populated object { _id, content, ... } or a plain ObjectId string
+  const postObj = raw.post && typeof raw.post === "object" ? raw.post : null;
+  const postId: string | undefined =
+    postObj?._id?.toString() ??
+    postObj?.id?.toString() ??
+    (typeof raw.post === "string" ? raw.post : undefined) ??
+    raw.postId;
+
+  // Grab a short snippet from the post content if available
+  const postContent: string | undefined = postObj?.content;
+  const postSnippet: string | undefined =
+    raw.postSnippet ??
+    (postContent ? postContent.slice(0, 80) + (postContent.length > 80 ? "…" : "") : undefined);
+
   return {
     id: raw._id?.toString() ?? raw.id ?? `n_${Date.now()}`,
     _id: raw._id?.toString(),
     type: raw.type ?? "like",
-    from: actor.name ?? actor.username ?? raw.from ?? "",
-    fromId: actor._id?.toString() ?? actor.id ?? raw.fromId ?? "",
-    fromAvatar: actor.avatar ?? actor.avatarUrl ?? raw.fromAvatar ?? "",
-    postId: raw.post?.toString() ?? raw.postId,
-    postSnippet: raw.postSnippet,
+    from: sender.name ?? sender.username ?? raw.from ?? "Someone",
+    fromId: sender._id?.toString() ?? sender.id ?? raw.fromId ?? "",
+    fromAvatar: sender.avatar ?? sender.avatarUrl ?? raw.fromAvatar ?? "",
+    postId,
+    postSnippet,
     text:
       raw.type === "like"
         ? "liked your post"

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -9,12 +9,14 @@ import {
   Platform,
   ActivityIndicator,
   Share as NativeShare,
+  Pressable,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsQuery, useLikeMutation, useCommentMutation } from "@/hooks/usePostsQuery";
+import { usePostsQuery, useLikeMutation, useCommentMutation, normalizePost } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { Avatar } from "@/components/Shared/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
@@ -22,6 +24,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ShareModal } from "@/components/feed/ShareModal";
 import { Gradients } from "@/constants/theme";
 import { appShadow, formatCount } from "@/lib/utils";
+import { postService } from "@/services/post.service";
 import type { Post } from "@/types";
 import {
   Send,
@@ -30,6 +33,8 @@ import {
   Share2,
   BadgeCheck,
   ChevronDown,
+  CornerDownRight,
+  X,
 } from "lucide-react-native";
 
 const PAGE_SIZE = 7;
@@ -47,17 +52,34 @@ export default function PostDetailScreen() {
   const commentMutation = useCommentMutation(currentUser);
 
   const [commentText, setCommentText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<{ username: string } | null>(null);
+  const inputRef = useRef<TextInput>(null);
   const [sharePost, setSharePost] = useState<Post | null>(null);
 
   // Comments pagination state
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  const post = posts.find((p) => (p.id || p._id) === id);
+  // Try to find post in the feed cache first
+  const cachedPost = posts.find((p) => (p.id || p._id) === id);
+
+  // If not in cache (e.g. navigated from a notification), fetch it directly
+  const { data: fetchedPost, isLoading: isFetchingPost } = useQuery({
+    queryKey: ["post", id],
+    queryFn: async () => {
+      const raw = await postService.getById(id!);
+      return normalizePost(raw);
+    },
+    enabled: !!id && !cachedPost,
+    staleTime: 30 * 1000,
+  });
+
+  const post = cachedPost ?? fetchedPost;
+
   const postId = post?.id || post?._id || "";
   const isLiked = post && (post.likes || []).includes(currentUserId);
-  const likeCount = post?.likes ? post.likes.length : (post?.likeCount || 0);
-  const commentCount = post?.comments ? post.comments.length : (post?.commentCount || 0);
+  const likeCount = typeof post?.likeCount === "number" ? post.likeCount : (post?.likes?.length || 0);
+  const commentCount = typeof post?.commentCount === "number" ? post.commentCount : (post?.comments?.length || 0);
 
   const authorName = post?.name || post?.author?.username || post?.username || "User";
   const authorUsername = (post?.username || post?.author?.username || "user").replace(/^@/, "");
@@ -75,10 +97,30 @@ export default function PostDetailScreen() {
     }).catch(() => { });
   };
 
+  const handleReply = (targetUsername: string) => {
+    setReplyingTo({ username: targetUsername });
+    setCommentText((prev) => {
+      const mention = `@${targetUsername} `;
+      if (prev.startsWith(mention)) return prev;
+      return `${mention}${prev.replace(/^@\w+\s*/, "")}`;
+    });
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
+  const handleCancelReply = () => {
+    if (replyingTo) {
+      setCommentText((prev) => prev.replace(new RegExp(`^@${replyingTo.username}\\s*`), ""));
+      setReplyingTo(null);
+    }
+  };
+
   const handleSendComment = async () => {
     if (!commentText.trim() || !id || commentMutation.isPending) return;
     const text = commentText.trim();
     setCommentText("");
+    setReplyingTo(null);
     try {
       await commentMutation.mutateAsync({ postId: id, content: text });
       setVisibleCount((prev) => Math.max(prev, (post?.comments?.length || 0) + 1));
@@ -107,18 +149,23 @@ export default function PostDetailScreen() {
           paddingTop: insets.top + 8,
         }}
       >
-        <View className="px-4 pb-3 flex-row items-center justify-between border-b border-border">
+        <View style={{ paddingHorizontal: 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <BackButton onPress={() => router.back()} />
-          <Text style={{ color: colors.text }} className="text-lg font-bold">
-            Post
-          </Text>
+          <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>Post</Text>
           <View style={{ width: 38 }} />
         </View>
-        <EmptyState
-          icon="🔍"
-          title="Post not found"
-          description="This post may have been deleted or does not exist."
-        />
+        {isFetchingPost ? (
+          <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+            <ActivityIndicator size="large" color={colors.brand} />
+            <Text style={{ color: colors.text3, fontSize: 14 }}>Loading post…</Text>
+          </View>
+        ) : (
+          <EmptyState
+            icon="🔍"
+            title="Post not found"
+            description="This post may have been deleted or does not exist."
+          />
+        )}
       </View>
     );
   }
@@ -465,21 +512,56 @@ export default function PostDetailScreen() {
 
                 <Text
                   style={{ color: colors.text }}
-                  className="text-sm leading-5"
+                  className="text-sm leading-5 mb-2"
                 >
                   {item.text || item.content}
                 </Text>
+
+                {/* Reply Button Row */}
+                <View className="flex-row items-center gap-3">
+                  <Pressable
+                    onPress={() => handleReply(authorUsername)}
+                    hitSlop={8}
+                    className="flex-row items-center gap-1 py-1"
+                  >
+                    <CornerDownRight size={13} color={colors.brand2} />
+                    <Text
+                      style={{ color: colors.brand2 }}
+                      className="text-xs font-bold"
+                    >
+                      Reply
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           );
         }}
       />
 
+      {/* 💬 Replying Bar (if user tapped reply) */}
+      {replyingTo && (
+        <View
+          style={{
+            backgroundColor: isDark ? "rgba(99, 102, 241, 0.12)" : "rgba(99, 102, 241, 0.08)",
+            borderTopColor: colors.border,
+          }}
+          className="px-4 py-2 flex-row items-center justify-between border-t"
+        >
+          <Text style={{ color: colors.text2 }} className="text-xs">
+            Replying to <Text style={{ color: colors.brand2, fontWeight: "700" }}>@{replyingTo.username}</Text>
+          </Text>
+          <Pressable onPress={handleCancelReply} hitSlop={8} className="p-1">
+            <X size={14} color={colors.text3} />
+          </Pressable>
+        </View>
+      )}
+
       {/* 💬 Bottom Fixed Comment Input */}
       <View
         style={{
           backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          borderTopColor: replyingTo ? "transparent" : colors.border,
           paddingBottom: Math.max(insets.bottom, 12),
           paddingTop: 10,
           paddingHorizontal: 14,
@@ -497,15 +579,16 @@ export default function PostDetailScreen() {
           style={{
             flex: 1,
             backgroundColor: colors.surface2,
-            borderColor: colors.border,
+            borderColor: replyingTo ? colors.brand : colors.border,
             height: 44,
           }}
           className="flex-row items-center px-3.5 rounded-full border"
         >
           <TextInput
+            ref={inputRef}
             value={commentText}
             onChangeText={setCommentText}
-            placeholder="Post your reply..."
+            placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Post your reply..."}
             placeholderTextColor={colors.text3}
             style={{
               flex: 1,

@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     // borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 4,
+    marginBottom: 2,
     // shadowColor: "#6366F1",
     // shadowOffset: { width: 0, height: 8 },
     // shadowOpacity: 0.45,

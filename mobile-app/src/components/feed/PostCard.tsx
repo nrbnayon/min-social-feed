@@ -44,8 +44,8 @@ export function PostCard({
 
   const postId = post.id || post._id || "";
   const isLiked = (post.likes || []).includes(currentUserId);
-  const likeCount = post.likes ? post.likes.length : (post.likeCount || 0);
-  const commentCount = post.comments ? post.comments.length : (post.commentCount || 0);
+  const likeCount = typeof post.likeCount === "number" ? post.likeCount : (post.likes?.length || 0);
+  const commentCount = typeof post.commentCount === "number" ? post.commentCount : (post.comments?.length || 0);
 
   const authorName = post.name || post.author?.username || post.username || "User";
   const authorUsername = (post.username || post.author?.username || "user").replace(/^@/, "");

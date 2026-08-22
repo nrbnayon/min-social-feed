@@ -126,7 +126,6 @@ const userSchema = new Schema<UserDocument>(
     },
     expoPushToken: {
       type: String,
-      select: false,
       default: null,
     },
   },

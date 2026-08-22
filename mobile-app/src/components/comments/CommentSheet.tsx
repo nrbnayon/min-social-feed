@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Modal,
   View,
@@ -11,12 +11,12 @@ import {
   Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Post, Comment } from "@/types";
+import type { Post } from "@/types";
 import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useCommentMutation } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
-import { X, Send, Heart } from "lucide-react-native";
+import { X, Send, CornerDownRight } from "lucide-react-native";
 import { router } from "expo-router";
 
 interface CommentSheetProps {
@@ -31,16 +31,38 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
   const commentMutation = useCommentMutation(currentUser);
 
   const [text, setText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<{ username: string } | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   if (!post) return null;
 
   const postId = post.id || post._id || "";
   const comments = post.comments || [];
 
+  const handleReply = (targetUsername: string) => {
+    setReplyingTo({ username: targetUsername });
+    setText((prev) => {
+      const mention = `@${targetUsername} `;
+      if (prev.startsWith(mention)) return prev;
+      return `${mention}${prev.replace(/^@\w+\s*/, "")}`;
+    });
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  };
+
+  const handleCancelReply = () => {
+    if (replyingTo) {
+      setText((prev) => prev.replace(new RegExp(`^@${replyingTo.username}\\s*`), ""));
+      setReplyingTo(null);
+    }
+  };
+
   const handleSend = async () => {
     if (!text.trim()) return;
     const trimmed = text.trim();
     setText(""); // Clear immediately for better UX
+    setReplyingTo(null);
     await commentMutation.mutateAsync({ postId, content: trimmed });
   };
 
@@ -114,28 +136,53 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
                           @{commenterUsername}
                         </Text>
                       </Pressable>
-                      <Text style={[styles.commentTime, { color: colors.text3 }]}>
-                        {item.time || "just now"}
-                      </Text>
                     </View>
 
                     <Text style={[styles.commentText, { color: colors.text }]}>
                       {item.text || item.content}
                     </Text>
-                  </View>
 
-                  <Pressable style={styles.commentLikeBtn}>
-                    <Heart size={14} color={colors.text3} />
-                    {item.likes > 0 && (
-                      <Text style={[styles.commentLikeCount, { color: colors.text3 }]}>
-                        {item.likes}
+                    {/* Action row with timestamp and Reply button */}
+                    <View style={styles.commentActionRow}>
+                      <Text style={[styles.commentTime, { color: colors.text3 }]}>
+                        {item.time || "just now"}
                       </Text>
-                    )}
-                  </Pressable>
+                      <Pressable
+                        onPress={() => handleReply(commenterUsername)}
+                        hitSlop={8}
+                        style={styles.replyButton}
+                      >
+                        <CornerDownRight size={12} color={colors.brand2} />
+                        <Text style={[styles.replyButtonText, { color: colors.brand2 }]}>
+                          Reply
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
                 </View>
               );
             }}
           />
+
+          {/* Replying Banner */}
+          {replyingTo && (
+            <View
+              style={[
+                styles.replyingBar,
+                {
+                  backgroundColor: isDark ? "rgba(99, 102, 241, 0.12)" : "rgba(99, 102, 241, 0.08)",
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <Text style={[styles.replyingText, { color: colors.text2 }]}>
+                Replying to <Text style={{ color: colors.brand2, fontWeight: "700" }}>@{replyingTo.username}</Text>
+              </Text>
+              <Pressable onPress={handleCancelReply} hitSlop={8} style={styles.cancelReplyBtn}>
+                <X size={14} color={colors.text3} />
+              </Pressable>
+            </View>
+          )}
 
           {/* Bottom Input */}
           <View
@@ -150,15 +197,16 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
           >
             <Avatar src={currentUser?.avatar} size={34} name={currentUser?.name} />
             <TextInput
+              ref={inputRef}
               value={text}
               onChangeText={setText}
-              placeholder="Add a comment..."
+              placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : "Add a comment..."}
               placeholderTextColor={colors.text3}
               style={[
                 styles.textInput,
                 {
                   backgroundColor: colors.surface2,
-                  borderColor: colors.border,
+                  borderColor: replyingTo ? colors.brand : colors.border,
                   color: colors.text,
                 },
               ]}
@@ -253,20 +301,43 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
-  commentTime: {
-    fontSize: 11,
-  },
   commentText: {
     fontSize: 13.5,
     lineHeight: 19,
   },
-  commentLikeBtn: {
+  commentActionRow: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: 4,
-    gap: 2,
+    gap: 12,
+    marginTop: 5,
   },
-  commentLikeCount: {
-    fontSize: 10,
+  commentTime: {
+    fontSize: 11,
+  },
+  replyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  replyButtonText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  replyingBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+  },
+  replyingText: {
+    fontSize: 12.5,
+  },
+  cancelReplyBtn: {
+    padding: 4,
   },
   inputRow: {
     flexDirection: "row",

@@ -48,6 +48,15 @@ export const postService = {
   },
 
   /**
+   * Get a single post by ID.
+   * GET /api/posts/:id
+   */
+  getById: async (id: string): Promise<Post> => {
+    const res = await api.get<{ data: { post: Post } }>(`/posts/${id}`);
+    return res.data.data.post;
+  },
+
+  /**
    * Like or unlike a post.
    * POST /api/posts/:id/like
    */

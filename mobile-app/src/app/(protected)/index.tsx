@@ -441,7 +441,7 @@ export default function FeedScreen() {
       {/* 💬 Comments Bottom Sheet Modal */}
       {commentPost && (
         <CommentSheet
-          post={commentPost}
+          post={posts.find((p) => (p.id || p._id) === (commentPost.id || commentPost._id)) || commentPost}
           onClose={() => setCommentPost(null)}
         />
       )}

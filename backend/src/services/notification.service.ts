@@ -4,6 +4,7 @@ import { Post } from "../models/Post.js";
 import { AppError } from "../utils/app-error.js";
 import { sendPushNotification } from "./expo-push.service.js";
 import { pagination } from "../utils/pagination.js";
+import { logger } from "../utils/logger.js";
 import type { PaginatedResponse } from "../types/post.types.js";
 import type { NotificationDocument, NotificationType } from "../models/Notification.js";
 
@@ -25,26 +26,38 @@ export const createAndSendNotification = async (
   postId: string
 ): Promise<void> => {
   try {
+    const rId = String(recipientId);
+    const sId = String(senderId);
+    const pId = String(postId);
+
     // Never notify yourself
-    if (recipientId === senderId) return;
+    if (!rId || !sId || rId === sId) {
+      logger.debug(`[NotificationService] Skipping self-notification for user ${sId}`);
+      return;
+    }
 
     // Fetch sender profile + recipient's push token in parallel
     const [sender, recipient, post] = await Promise.all([
-      User.findById(senderId).select("username name avatar"),
-      User.findById(recipientId).select("expoPushToken").select("+expoPushToken"),
-      Post.findById(postId).select("content"),
+      User.findById(sId).select("username name avatar"),
+      User.findById(rId).select("expoPushToken"),
+      Post.findById(pId).select("content"),
     ]);
 
-    if (!sender || !recipient) return;
+    if (!sender || !recipient) {
+      logger.warn(`[NotificationService] Notification skipped: sender or recipient not found (sender: ${sId}, recipient: ${rId})`);
+      return;
+    }
 
     // Persist notification to DB
-    await Notification.create({
-      recipient: recipientId,
-      sender: senderId,
+    const savedNotification = await Notification.create({
+      recipient: rId,
+      sender: sId,
       type,
-      post: postId,
+      post: pId,
       read: false,
     });
+
+    logger.info(`[NotificationService] Notification created (id: ${savedNotification._id}, type: ${type}, from: @${sender.username} -> to: ${rId})`);
 
     // Build human-readable push payload
     const senderHandle = `@${sender.username}`;
@@ -64,23 +77,26 @@ export const createAndSendNotification = async (
 
     // Send push only if the recipient has a registered token
     if (recipient.expoPushToken) {
+      logger.info(`[NotificationService] Sending ${type} push to token: ${recipient.expoPushToken}`);
       await sendPushNotification(recipient.expoPushToken, {
         title,
         body,
         data: {
           type,
-          postId,
-          senderId,
+          postId: pId,
+          senderId: sId,
           senderUsername: sender.username,
         },
         badge: 1,
         sound: "default",
         channelId: "default",
       });
+    } else {
+      logger.debug(`[NotificationService] No Expo push token for recipient ${rId}`);
     }
   } catch (error) {
     // Never crash the main request because of a notification failure
-    console.error("[NotificationService] createAndSendNotification failed:", error);
+    logger.error("[NotificationService] createAndSendNotification failed:", error);
   }
 };
 
