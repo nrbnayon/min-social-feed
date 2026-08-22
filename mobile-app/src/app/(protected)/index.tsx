@@ -7,14 +7,15 @@ import {
   Image,
   RefreshControl,
   Platform,
-  ActivityIndicator
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import type { Post } from "@/types";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { usePostsQuery, useLikeMutation } from "@/hooks/usePostsQuery";
+import { useNotificationsQuery } from "@/hooks/useNotificationsQuery";
 import { useAuth } from "@/store/auth.store";
 import { PostCard } from "@/components/feed/PostCard";
 import { CommentSheet } from "@/components/comments/CommentSheet";
@@ -36,22 +37,27 @@ const PAGE_SIZE = 5;
 export default function FeedScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const {
-    posts,
-    notifications,
-    isLoading,
-    refresh,
-  } = usePostsStore();
   const currentUser = useAuth((s) => s.user);
 
-  // Active Feed Tab: "forYou" | "following"
+  // ── TanStack Query: posts & notifications ──────────────────────────────────
+  const {
+    data: postsData,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = usePostsQuery();
+  const { data: notifData } = useNotificationsQuery();
+
+  const posts = postsData?.items ?? [];
+  const unreadNotificationsCount = notifData?.unreadCount ?? 0;
+
+  // ── Tabs & search ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<"forYou" | "following">("forYou");
   const [searchQuery, setSearchQuery] = useState("");
 
   // Pagination state (infinite scroll)
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Modals state
   const [commentPost, setCommentPost] = useState<Post | null>(null);
@@ -62,18 +68,13 @@ export default function FeedScreen() {
     setPage(1);
   }, [activeTab, searchQuery]);
 
-  // Compute unread notifications count
-  const unreadNotificationsCount = useMemo(() => {
-    return notifications.filter((n) => !n.read).length;
-  }, [notifications]);
-
   // Filtered posts based on activeTab & searchQuery
   const filteredPosts = useMemo(() => {
     let result = posts;
 
     if (activeTab === "following") {
       result = result.filter(
-        (p) => (p.likes || []).length > 0 || p.userId !== currentUser?.id
+        (p) => (p.likeCount ?? 0) > 0 || p.userId !== currentUser?.id
       );
     }
 
@@ -98,13 +99,8 @@ export default function FeedScreen() {
   const hasMore = visiblePosts.length < filteredPosts.length;
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
     setPage(1);
-    try {
-      await refresh();
-    } finally {
-      setIsRefreshing(false);
-    }
+    await refetch();
   };
 
   const handleLoadMore = () => {
@@ -124,7 +120,7 @@ export default function FeedScreen() {
         <Input
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search posts or users..."
+          placeholder="Search posts or @username..."
           leftIcon={<Search size={18} color={colors.text3} />}
           clearable
           onClear={() => setSearchQuery("")}
@@ -345,7 +341,7 @@ export default function FeedScreen() {
         </View>
       </View>
 
-      {/* 📜 Feed Posts List with Natural Scrollable Header, Pull-to-Refresh & Infinite Scroll */}
+      {/* 📜 Feed Posts List */}
       <FlatList
         data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
@@ -367,7 +363,7 @@ export default function FeedScreen() {
         onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isRefetching}
             onRefresh={handleRefresh}
             tintColor={colors.brand}
             colors={[colors.brand]}
@@ -391,7 +387,7 @@ export default function FeedScreen() {
           ) : null
         }
         ListEmptyComponent={
-          !isLoading && !isRefreshing ? (
+          !isLoading ? (
             <View className="px-6 py-12 items-center">
               <View
                 style={{
@@ -418,7 +414,7 @@ export default function FeedScreen() {
               >
                 {searchQuery
                   ? `No posts matching "${searchQuery}".`
-                  : "No posts available in this feed yet."}
+                  : "No posts yet. Be the first to post!"}
               </Text>
               {searchQuery.length > 0 && (
                 <TouchableOpacity

@@ -10,3 +10,4 @@ postRoutes.get("/", getPosts);
 postRoutes.post("/", requireAuth, validate(createPostSchema), createPostController);
 postRoutes.post("/:id/like", requireAuth, likePost);
 postRoutes.post("/:id/comments", requireAuth, validate(createCommentSchema), commentPost);
+postRoutes.post("/:id/comment", requireAuth, validate(createCommentSchema), commentPost);

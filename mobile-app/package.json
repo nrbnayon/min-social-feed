@@ -20,6 +20,7 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "@tanstack/react-query": "^5.101.4",
     "axios": "^1.13.4",
     "babel-preset-expo": "~54.0.10",
     "clsx": "^2.1.1",

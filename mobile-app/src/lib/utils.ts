@@ -38,3 +38,58 @@ export function formatCount(count: number | undefined | null): string {
   const formatted = (count / 1_000_000_000).toFixed(1);
   return formatted.endsWith(".0") ? `${formatted.slice(0, -2)}B` : `${formatted}B`;
 }
+
+/**
+ * Extracts a clean, user-friendly error message from API errors or exceptions.
+ */
+export function extractErrorMessage(
+  error: any,
+  fallback = "Something went wrong. Please try again."
+): string {
+  if (!error) return fallback;
+  if (typeof error === "string") return error;
+
+  // 1. Backend structured error message
+  const backendMsg =
+    error?.response?.data?.error?.message ||
+    error?.response?.data?.message ||
+    (typeof error?.response?.data?.error === "string" ? error?.response?.data?.error : undefined);
+
+  if (backendMsg && typeof backendMsg === "string") {
+    return backendMsg;
+  }
+
+  // 2. HTTP status code based fallbacks
+  const status = error?.response?.status;
+  if (status === 401) {
+    return "Invalid email or password. Please check your credentials.";
+  }
+  if (status === 400) {
+    return "Please verify your input and try again.";
+  }
+  if (status === 403) {
+    return "You do not have permission to perform this action.";
+  }
+  if (status === 404) {
+    return "Resource or user account not found.";
+  }
+  if (status === 409) {
+    return "An account with this username or email already exists.";
+  }
+  if (status === 422) {
+    return "Validation error. Please check your details.";
+  }
+  if (status >= 500) {
+    return "Server error. Our team has been notified, please try again.";
+  }
+
+  // 3. Network connection errors
+  if (error?.code === "ECONNABORTED" || error?.message?.toLowerCase().includes("timeout")) {
+    return "Request timed out. Please check your internet connection.";
+  }
+  if (error?.message === "Network Error" || error?.message?.toLowerCase().includes("network")) {
+    return "Unable to connect to server. Please check your internet connection.";
+  }
+
+  return fallback;
+}

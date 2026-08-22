@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import type { User, Post } from "@/types";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { usePostsQuery } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { useToastStore } from "@/store/useToastStore";
 import { PostCard } from "@/components/feed/PostCard";
@@ -23,7 +23,6 @@ import { BackButton } from "@/components/ui/BackButton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CommentSheet } from "@/components/comments/CommentSheet";
 import { ShareModal } from "@/components/feed/ShareModal";
-import { SEED_USERS, CURRENT_USER } from "@/data/seed";
 import { Gradients } from "@/constants/theme";
 import { formatCount, appShadow } from "@/lib/utils";
 import {
@@ -42,7 +41,8 @@ export default function UserProfileScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const currentUser = useAuth((s) => s.user);
-  const posts = usePostsStore((s) => s.posts);
+  const { data: postsData } = usePostsQuery();
+  const posts = postsData?.items ?? [];
   const showToast = useToastStore((s) => s.showToast);
 
   const [isFollowing, setIsFollowing] = useState(false);
@@ -58,15 +58,6 @@ export default function UserProfileScreen() {
     if (currentUser && (currentUser.id === id || currentUser.username === cleanId)) {
       return currentUser as User;
     }
-    if (CURRENT_USER.id === id || CURRENT_USER.username === cleanId) {
-      return CURRENT_USER;
-    }
-
-    // Check Seed Users
-    const foundInSeed = SEED_USERS.find(
-      (u) => u.id === id || u.username.toLowerCase() === cleanId.toLowerCase()
-    );
-    if (foundInSeed) return foundInSeed;
 
     // Search inside posts
     const postWithUser = posts.find(

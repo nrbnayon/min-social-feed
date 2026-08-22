@@ -21,8 +21,8 @@ const startServer = async (maxRetries = 10, retryDelayMs = 3000): Promise<void> 
 
       // 2. Start HTTP Server
       await new Promise<void>((resolve, reject) => {
-        server = app.listen(env.port, () => {
-          logger.info(`🚀 API server is running on http://localhost:${env.port}`);
+        server = app.listen(env.port, "0.0.0.0", () => {
+          logger.info(`🚀 API server is running on http://localhost:${env.port} and http://0.0.0.0:${env.port}`);
           logger.info(`Environment: ${env.nodeEnv} | Node.js: ${process.version}`);
           resolve();
         });

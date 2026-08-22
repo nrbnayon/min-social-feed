@@ -4,12 +4,12 @@
     "slug": "mini-social-feed",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icons/app-icon.png",
+    "icon": "./assets/icons/appIcon1.png",
     "scheme": "mini-social-feed",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#090A12",
     "ios": {
-      "icon": "./assets/icons/app-icon.png",
+      "icon": "./assets/icons/appIcon1.png",
       "bundleIdentifier": "com.minisocial.feed",
       "buildNumber": "1",
       "supportsTablet": true,
@@ -26,7 +26,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#090A12",
-        "foregroundImage": "./assets/icons/app-icon.png"
+        "foregroundImage": "./assets/icons/appIcon1.png"
       },
       "package": "com.minisocial.feed",
       "predictiveBackGestureEnabled": false,
@@ -50,12 +50,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/icons/logo.png",
+          "image": "./assets/icons/appIcon1.png",
           "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#090A12",
           "dark": {
-            "image": "./assets/icons/logo.png",
+            "image": "./assets/icons/appIcon1.png",
             "backgroundColor": "#090A12"
           }
         }
@@ -63,7 +63,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icons/app-icon.png",
+          "icon": "./assets/icons/appIcon1.png",
           "color": "#6366F1",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true

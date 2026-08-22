@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Post, Comment } from "@/types";
 import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { useCommentMutation } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { X, Send, Heart } from "lucide-react-native";
 import { router } from "expo-router";
@@ -27,8 +27,8 @@ interface CommentSheetProps {
 export function CommentSheet({ post, onClose }: CommentSheetProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const { addComment } = usePostsStore();
   const currentUser = useAuth((s) => s.user);
+  const commentMutation = useCommentMutation(currentUser);
 
   const [text, setText] = useState("");
 
@@ -37,10 +37,11 @@ export function CommentSheet({ post, onClose }: CommentSheetProps) {
   const postId = post.id || post._id || "";
   const comments = post.comments || [];
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!text.trim()) return;
-    addComment(postId, text.trim(), currentUser);
-    setText("");
+    const trimmed = text.trim();
+    setText(""); // Clear immediately for better UX
+    await commentMutation.mutateAsync({ postId, content: trimmed });
   };
 
   return (

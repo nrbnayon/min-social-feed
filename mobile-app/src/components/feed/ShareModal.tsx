@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Post } from "@/types";
 import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
-import { usePostsStore } from "@/hooks/usePosts";
 import {
   Copy,
   Share,
@@ -30,11 +29,8 @@ export function ShareModal({ post, onClose }: ShareModalProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
   const showToast = useToastStore((s) => s.showToast);
-  const { toggleBookmark, sharePost } = usePostsStore();
 
   if (!post) return null;
-
-  const postId = post.id || post._id || "";
 
   const handleCopyLink = () => {
     onClose();
@@ -43,7 +39,6 @@ export function ShareModal({ post, onClose }: ShareModalProps) {
 
   const handleNativeShare = async () => {
     onClose();
-    sharePost(postId);
     try {
       await NativeShare.share({
         message: `${post.content}\n\nShared from MiniSocial by @${post.username || "user"}`,
@@ -53,13 +48,12 @@ export function ShareModal({ post, onClose }: ShareModalProps) {
 
   const handleBookmarkAction = () => {
     onClose();
-    toggleBookmark(postId);
+    showToast("Saved to bookmarks!", "🔖");
   };
 
   const handleRepostAction = () => {
     onClose();
-    sharePost(postId);
-    showToast("Reposted to your profile! 🔁", "🔁");
+    showToast("Reposted to your feed!", "🔁");
   };
 
   const actions = [

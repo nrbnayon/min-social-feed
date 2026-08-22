@@ -17,23 +17,21 @@ import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
 import { Gradients } from "@/constants/theme";
 import { Input } from "@/components/ui/input";
-import { appShadow } from "@/lib/utils";
+import { appShadow, extractErrorMessage } from "@/lib/utils";
 import {
-  Sparkles,
   Lock,
   Mail,
 } from "lucide-react-native";
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useAppTheme();
-  const { login, loginDemo } = useAuth();
+  const { colors, isDark } = useAppTheme();
+  const { login } = useAuth();
   const showToast = useToastStore((s) => s.showToast);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
@@ -46,6 +44,10 @@ export default function LoginScreen() {
       setError("Please enter a valid email address.");
       return;
     }
+    if (!password) {
+      setError("Please enter your password.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -53,20 +55,10 @@ export default function LoginScreen() {
       showToast("Welcome back! 👋", "👋");
       router.replace("/(protected)");
     } catch (e: any) {
-      setError(e?.message || "Invalid email or password.");
+      const msg = extractErrorMessage(e, "Invalid email or password. Please try again.");
+      setError(msg);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDemoLogin = async () => {
-    setDemoLoading(true);
-    try {
-      await loginDemo();
-      showToast("Signed in as Jordan Ellis ✨", "✨");
-      router.replace("/(protected)");
-    } finally {
-      setDemoLoading(false);
     }
   };
 
@@ -90,8 +82,8 @@ export default function LoginScreen() {
           {/* Header & App Logo */}
           <View className="items-center mb-8">
             <Image
-              source={require("@/assets/images/app-logo.png")}
-              style={{ width: 72, height: 72, borderRadius: 16 }}
+              source={require("@/assets/icons/appIcon.png")}
+              style={{ width: 100, height: 100, borderRadius: 16 }}
               className="mb-4 shadow-lg shadow-indigo-500/30"
               resizeMode="contain"
             />
@@ -105,14 +97,23 @@ export default function LoginScreen() {
 
           {/* Error Message */}
           {error ? (
-            <View className="bg-pink/10 border border-pink/30 rounded-lg p-3.5 mb-5">
-              <Text className="text-sm font-semibold text-pink text-center">
+            <View
+              style={{
+                backgroundColor: isDark ? "rgba(244, 63, 94, 0.15)" : "#FFF1F2",
+                borderColor: colors.pink,
+              }}
+              className="border rounded-xl p-3.5 mb-5 flex-row items-center gap-2.5"
+            >
+              <Text
+                style={{ color: colors.pink }}
+                className="text-sm font-semibold flex-1 text-center"
+              >
                 {error}
               </Text>
             </View>
           ) : null}
 
-          {/* Form Fields using Reusable Input */}
+          {/* Form Fields */}
           <View className="mb-2">
             <Input
               label="Email Address"
@@ -139,10 +140,10 @@ export default function LoginScreen() {
           {/* Sign In CTA Button */}
           <TouchableOpacity
             onPress={handleLogin}
-            disabled={loading || demoLoading}
+            disabled={loading}
             activeOpacity={0.85}
             style={{ height: 50, overflow: "hidden" }}
-            className={`w-full ${appShadow} mb-3.5 rounded-lg`}
+            className={`w-full ${appShadow} mb-8 rounded-lg`}
           >
             <LinearGradient
               colors={Gradients.brand}
@@ -164,26 +165,6 @@ export default function LoginScreen() {
                 </Text>
               )}
             </LinearGradient>
-          </TouchableOpacity>
-
-          {/* Demo Account Button */}
-          <TouchableOpacity
-            onPress={handleDemoLogin}
-            disabled={loading || demoLoading}
-            activeOpacity={0.8}
-            style={{ height: 50 }}
-            className="flex-row items-center justify-center gap-2 bg-surface border border-border mb-8 rounded-lg"
-          >
-            {demoLoading ? (
-              <ActivityIndicator color={colors.brand2} size="small" />
-            ) : (
-              <>
-                <Sparkles size={18} color={colors.brand2} />
-                <Text className="text-base font-semibold text-foreground">
-                  Try Demo Account
-                </Text>
-              </>
-            )}
           </TouchableOpacity>
 
           {/* Footer Link */}

@@ -101,7 +101,8 @@ export type PaginatedPosts = {
 
 export type AuthResponse = {
   user: User;
-  token: string;
+  accessToken: string;
+  refreshToken: string;
 };
 
 export type RegisterInput = {

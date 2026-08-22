@@ -1,61 +1,89 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
   TextInput,
   ScrollView,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import Animated, {
+  useAnimatedKeyboard,
+  useAnimatedStyle,
+} from "react-native-reanimated";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { useCreatePostMutation } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { Avatar } from "@/components/Shared/Avatar";
 import { Gradients } from "@/constants/theme";
 import { X, Send } from "lucide-react-native";
 
-const MAX_CHARS = 280;
+const MAX_CHARS = 1000;
 
 export default function CreatePostScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const { createPost } = usePostsStore();
+  const createPostMutation = useCreatePostMutation();
   const currentUser = useAuth((s) => s.user);
 
   const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  // Hardware-accelerated real-time keyboard tracking on both iOS and Android
+  const keyboard = useAnimatedKeyboard({
+    isStatusBarTranslucentAndroid: true,
+  });
+
+  const animatedBottomStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: -keyboard.height.value }],
+    };
+  });
+
+  // Auto-focus and open keyboard whenever user opens or returns to Create Post
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+
+      return () => clearTimeout(timer);
+    }, [])
+  );
+
+  // Clear form whenever screen loses focus or user navigates away after publishing
+  const handleClose = () => {
+    setContent("");
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(protected)");
+    }
+  };
 
   const handlePublish = async () => {
-    if (!content.trim() || loading) return;
-    setLoading(true);
+    if (!content.trim() || createPostMutation.isPending) return;
+    const textToPublish = content.trim();
     try {
-      await createPost(
-        content.trim(),
-        [], // No tags
-        undefined,
-        currentUser
-      );
-      router.back();
-    } finally {
-      setLoading(false);
+      await createPostMutation.mutateAsync(textToPublish);
+      setContent(""); // Clear input form on success
+      handleClose();
+    } catch {
+      // Error toast handled inside mutation
     }
   };
 
   const isOverLimit = content.length > MAX_CHARS;
-  const isNearLimit = content.length > 250;
-  const canPublish = content.trim().length > 0 && !loading && !isOverLimit;
+  const isNearLimit = content.length > 900;
+  const canPublish = content.trim().length > 0 && !createPostMutation.isPending && !isOverLimit;
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{ flex: 1, backgroundColor: colors.background }}
-    >
-      {/* 🌟 Top Header with Back & Publish Button */}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* 1. Top Header with Back & Top Publish Button */}
       <View
         style={{
           paddingTop: insets.top + (Platform.OS === "ios" ? 8 : 12),
@@ -68,7 +96,7 @@ export default function CreatePostScreen() {
         className="flex-row items-center justify-between"
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={handleClose}
           activeOpacity={0.7}
           className="p-1.5 -ml-1.5"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -106,7 +134,7 @@ export default function CreatePostScreen() {
               gap: 5,
             }}
           >
-            {loading ? (
+            {createPostMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
@@ -126,12 +154,12 @@ export default function CreatePostScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 📝 Editor Body */}
+      {/* 2. Editor Body */}
       <ScrollView
         className="flex-1 px-5"
         contentContainerStyle={{
           paddingTop: 18,
-          paddingBottom: 24,
+          paddingBottom: 40,
           flexGrow: 1,
         }}
         keyboardShouldPersistTaps="handled"
@@ -150,19 +178,20 @@ export default function CreatePostScreen() {
               style={{ color: colors.text }}
               className="text-base font-bold"
             >
-              {currentUser?.name || "Jordan Ellis"}
+              {currentUser?.name || "User"}
             </Text>
             <Text
               style={{ color: colors.text3 }}
               className="text-xs mt-0.5"
             >
-              @{currentUser?.username || "jordan"} • Public update
+              @{currentUser?.username || "user"} • Public
             </Text>
           </View>
         </View>
 
-        {/* Text Input Box */}
+        {/* Text Input Box with Auto-Focus Ref */}
         <TextInput
+          ref={inputRef}
           value={content}
           onChangeText={setContent}
           placeholder="What's happening? Share what's on your mind..."
@@ -180,26 +209,34 @@ export default function CreatePostScreen() {
         />
       </ScrollView>
 
-      {/* 📊 Bottom Action Bar (Always visible at bottom & pinned above keyboard) */}
-      <View
-        style={{
-          paddingBottom: Math.max(insets.bottom, 12),
-          paddingTop: 10,
-          paddingHorizontal: 16,
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-        }}
+      {/* 3. Bottom Action Bar (Follows Keyboard Smoothly via Reanimated) */}
+      <Animated.View
+        style={[
+          animatedBottomStyle,
+          {
+            paddingBottom: Math.max(insets.bottom, 14),
+            paddingTop: 10,
+            paddingHorizontal: 16,
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+            borderTopWidth: 1,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: -2 },
+            shadowOpacity: isDark ? 0.3 : 0.08,
+            shadowRadius: 6,
+            elevation: 8,
+          },
+        ]}
         className="flex-row items-center justify-between"
       >
-        {/* Character Counter (e.g. 0 / 280) */}
+        {/* Character Counter */}
         <Text
           style={{
             color: isOverLimit
               ? colors.pink
               : isNearLimit
-              ? colors.yellow
-              : colors.text3,
+                ? colors.yellow
+                : colors.text3,
             fontSize: 13,
             fontWeight: "700",
           }}
@@ -207,7 +244,7 @@ export default function CreatePostScreen() {
           {content.length} / {MAX_CHARS}
         </Text>
 
-        {/* Bottom Right Post Button */}
+        {/* Bottom Post Button */}
         <TouchableOpacity
           onPress={handlePublish}
           disabled={!canPublish}
@@ -223,14 +260,14 @@ export default function CreatePostScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
-              paddingHorizontal: 18,
-              paddingVertical: 9,
+              paddingHorizontal: 20,
+              paddingVertical: 10,
               flexDirection: "row",
               alignItems: "center",
               gap: 6,
             }}
           >
-            {loading ? (
+            {createPostMutation.isPending ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
@@ -248,7 +285,7 @@ export default function CreatePostScreen() {
             )}
           </LinearGradient>
         </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+      </Animated.View>
+    </View>
   );
 }

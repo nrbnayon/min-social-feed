@@ -4,7 +4,7 @@ import { Pressable, Text, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { useNotificationsQuery } from "@/hooks/useNotificationsQuery";
 import { Gradients } from "@/constants/theme";
 import {
   Home,
@@ -21,8 +21,8 @@ export function CustomTabBar({
 }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const notifications = usePostsStore((s) => s.notifications);
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const { data: notifData } = useNotificationsQuery();
+  const unreadCount = notifData?.unreadCount ?? 0;
 
   const currentRoute = state.routes[state.index];
   const { options } = descriptors[currentRoute.key];

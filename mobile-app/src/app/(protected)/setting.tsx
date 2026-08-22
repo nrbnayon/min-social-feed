@@ -11,7 +11,7 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { usePostsQuery } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { useToastStore } from "@/store/useToastStore";
 import { Avatar } from "@/components/Shared/Avatar";
@@ -36,7 +36,8 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark, mode, setMode } = useAppTheme();
   const { user, logout } = useAuth();
-  const posts = usePostsStore((s) => s.posts);
+  const { data: postsData } = usePostsQuery();
+  const posts = postsData?.items ?? [];
   const showToast = useToastStore((s) => s.showToast);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);

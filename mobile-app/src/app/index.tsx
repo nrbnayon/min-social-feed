@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, Image, StyleSheet } from "react-native";
 import { router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,8 +10,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAuth } from "@/store/auth.store";
 import { useAppTheme } from "@/context/ThemeContext";
-import { Gradients } from "@/constants/theme";
-import { MessageSquare } from "lucide-react-native";
 
 export default function SplashScreen() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -51,15 +48,12 @@ export default function SplashScreen() {
       ]}
     >
       <Animated.View style={[styles.content, animatedStyle]}>
-        {/* Glowing gradient icon */}
-        <LinearGradient
-          colors={Gradients.brand}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
+        {/* App Icon Image */}
+        <Image
+          source={require("@/assets/icons/appIcon.png")}
           style={styles.logoBadge}
-        >
-          <MessageSquare size={36} color="#FFFFFF" strokeWidth={2.4} />
-        </LinearGradient>
+          resizeMode="contain"
+        />
 
         <Text style={[styles.title, { color: colors.text }]}>
           MiniSocial
@@ -82,17 +76,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logoBadge: {
-    width: 76,
-    height: 76,
-    borderRadius: 24,
+    width: 200,
+    height: 200,
+    // borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    shadowColor: "#6366F1",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    elevation: 8,
+    marginBottom: 4,
+    // shadowColor: "#6366F1",
+    // shadowOffset: { width: 0, height: 8 },
+    // shadowOpacity: 0.45,
+    // shadowRadius: 20,
+    // elevation: 8,
   },
   title: {
     fontSize: 28,

@@ -12,15 +12,16 @@ import {
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { usePostsQuery } from "@/hooks/usePostsQuery";
+import { useAuth } from "@/store/auth.store";
 import { useToastStore } from "@/store/useToastStore";
 import { PostCard } from "@/components/feed/PostCard";
 import { Avatar } from "@/components/Shared/Avatar";
 import { Input } from "@/components/ui/input";
 import { CommentSheet } from "@/components/comments/CommentSheet";
 import { ShareModal } from "@/components/feed/ShareModal";
-import { SUGGESTED_USERS } from "@/data/seed";
 import { appShadow } from "@/lib/utils";
+import type { Post } from "@/types";
 import {
   Search,
   Users,
@@ -35,23 +36,54 @@ const PAGE_SIZE = 5;
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const { posts, refresh, isLoading } = usePostsStore();
+  const { data: postsData, isLoading, isRefetching, refetch } = usePostsQuery();
+  const posts = postsData?.items ?? [];
+  const currentUser = useAuth((s) => s.user);
   const showToast = useToastStore((s) => s.showToast);
+
+  const currentUserId = currentUser?.id;
+  const currentUsername = (currentUser?.username || "").toLowerCase().replace(/^@/, "");
 
   const [query, setQuery] = useState("");
   const [followedIds, setFollowedIds] = useState<string[]>([]);
-  const [commentPost, setCommentPost] = useState<any>(null);
-  const [sharePost, setSharePost] = useState<any>(null);
+  const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [sharePost, setSharePost] = useState<Post | null>(null);
 
   // Pagination state (infinite scroll)
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Reset page whenever search query changes
   useEffect(() => {
     setPage(1);
   }, [query]);
+
+  // Dynamically derive unique creators from real backend posts (excluding current user)
+  const dynamicCreators = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; username: string; avatar?: string; verified?: boolean }>();
+    posts.forEach((p) => {
+      const uId = p.userId || p.author?.id || p.username;
+      const uName = p.name || p.username || "User";
+      const uUsername = (p.username || p.author?.username || "user").replace(/^@/, "");
+
+      // Do not suggest the logged in user to follow themselves
+      if (
+        uId &&
+        uId !== currentUserId &&
+        uUsername.toLowerCase() !== currentUsername &&
+        !map.has(uId)
+      ) {
+        map.set(uId, {
+          id: uId,
+          name: uName,
+          username: uUsername,
+          avatar: p.avatar || p.author?.avatarUrl,
+          verified: p.verified,
+        });
+      }
+    });
+    return Array.from(map.values()).slice(0, 10);
+  }, [posts, currentUserId, currentUsername]);
 
   const toggleFollow = (userId: string, name: string) => {
     if (followedIds.includes(userId)) {
@@ -74,7 +106,6 @@ export default function ExploreScreen() {
     });
   }, [posts, query]);
 
-  // Paginated visible posts for infinite scroll
   const visiblePosts = useMemo(() => {
     return filteredPosts.slice(0, page * PAGE_SIZE);
   }, [filteredPosts, page]);
@@ -82,13 +113,8 @@ export default function ExploreScreen() {
   const hasMore = visiblePosts.length < filteredPosts.length;
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
     setPage(1);
-    try {
-      await refresh();
-    } finally {
-      setIsRefreshing(false);
-    }
+    await refetch();
   };
 
   const handleLoadMore = () => {
@@ -100,7 +126,7 @@ export default function ExploreScreen() {
     }, 350);
   };
 
-  // Memoized scrollable header: Search bar + Suggested creators carousel
+  // Scrollable header: Search bar + Dynamic Suggested Creators
   const listHeader = useMemo(
     () => (
       <View className="pt-2">
@@ -116,110 +142,112 @@ export default function ExploreScreen() {
           containerClassName="px-4 mb-3"
         />
 
-        {/* 2. Suggested Creators Section */}
-        <View className="mb-4">
-          <View className="px-4 mb-2.5 flex-row items-center justify-between">
-            <View className="flex-row items-center gap-1.5">
-              <Users size={16} color={colors.brand2} />
-              <Text
-                style={{ color: colors.text }}
-                className="text-sm font-bold tracking-tight"
-              >
-                Suggested Creators
-              </Text>
-            </View>
-          </View>
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              gap: 10,
-              paddingVertical: 6,
-            }}
-          >
-            {SUGGESTED_USERS.map((user) => {
-              const isFollowing = followedIds.includes(user.id);
-              return (
-                <TouchableOpacity
-                  key={user.id}
-                  onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
-                  activeOpacity={0.85}
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
-                    width: 148,
-                  }}
-                  className={`p-3.5 rounded-2xl border items-center ${appShadow}`}
+        {/* 2. Suggested Creators Section (Only show if creators exist) */}
+        {dynamicCreators.length > 0 && (
+          <View className="mb-4">
+            <View className="px-4 mb-2.5 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-1.5">
+                <Users size={16} color={colors.brand2} />
+                <Text
+                  style={{ color: colors.text }}
+                  className="text-sm font-bold tracking-tight"
                 >
-                  <Avatar
-                    src={user.avatar}
-                    size={50}
-                    gradientBorder={true}
-                    name={user.name}
-                    onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
-                  />
+                  Active Creators
+                </Text>
+              </View>
+            </View>
 
-                  <View className="flex-row items-center gap-1 mt-2 mb-0.5">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingHorizontal: 16,
+                gap: 10,
+                paddingVertical: 6,
+              }}
+            >
+              {dynamicCreators.map((user) => {
+                const isFollowing = followedIds.includes(user.id);
+                return (
+                  <TouchableOpacity
+                    key={user.id}
+                    onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
+                    activeOpacity={0.85}
+                    style={{
+                      backgroundColor: colors.surface,
+                      borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
+                      width: 148,
+                    }}
+                    className={`p-3.5 rounded-2xl border items-center ${appShadow}`}
+                  >
+                    <Avatar
+                      src={user.avatar}
+                      size={50}
+                      gradientBorder={true}
+                      name={user.name}
+                      onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
+                    />
+
+                    <View className="flex-row items-center gap-1 mt-2 mb-0.5">
+                      <Text
+                        style={{ color: colors.text }}
+                        className="text-xs font-bold text-center"
+                        numberOfLines={1}
+                      >
+                        {user.name}
+                      </Text>
+                      {user.verified && (
+                        <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
+                      )}
+                    </View>
+
                     <Text
-                      style={{ color: colors.text }}
-                      className="text-xs font-bold text-center"
+                      style={{ color: colors.text3 }}
+                      className="text-[11px] text-center mb-3"
                       numberOfLines={1}
                     >
-                      {user.name}
+                      @{user.username}
                     </Text>
-                    {user.verified && (
-                      <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
-                    )}
-                  </View>
 
-                  <Text
-                    style={{ color: colors.text3 }}
-                    className="text-[11px] text-center mb-3"
-                    numberOfLines={1}
-                  >
-                    @{user.username}
-                  </Text>
-
-                  <TouchableOpacity
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      toggleFollow(user.id, user.username);
-                    }}
-                    activeOpacity={0.8}
-                    style={{
-                      backgroundColor: isFollowing ? colors.surface2 : colors.brand,
-                      borderColor: isFollowing ? colors.border : colors.brand,
-                    }}
-                    className="w-full py-1.5 rounded-full border items-center justify-center"
-                  >
-                    <Text
-                      style={{ color: isFollowing ? colors.text2 : "#FFFFFF" }}
-                      className="text-[11px] font-bold"
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        toggleFollow(user.id, user.username);
+                      }}
+                      activeOpacity={0.8}
+                      style={{
+                        backgroundColor: isFollowing ? colors.surface2 : colors.brand,
+                        borderColor: isFollowing ? colors.border : colors.brand,
+                      }}
+                      className="w-full py-1.5 rounded-full border items-center justify-center"
                     >
-                      {isFollowing ? "Following" : "Follow"}
-                    </Text>
+                      <Text
+                        style={{ color: isFollowing ? colors.text2 : "#FFFFFF" }}
+                        className="text-[11px] font-bold"
+                      >
+                        {isFollowing ? "Following" : "Follow"}
+                      </Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Trending Posts Section Title */}
-          <View className="px-4 mt-3 mb-1.5 flex-row items-center gap-1.5">
-            <TrendingUp size={16} color={colors.pink} />
-            <Text
-              style={{ color: colors.text }}
-              className="text-sm font-bold tracking-tight"
-            >
-              {query ? `Search Results (${filteredPosts.length})` : "Trending Feed"}
-            </Text>
+                );
+              })}
+            </ScrollView>
           </View>
+        )}
+
+        {/* Trending Posts Section Title */}
+        <View className="px-4 mt-1 mb-2 flex-row items-center gap-1.5">
+          <TrendingUp size={16} color={colors.pink} />
+          <Text
+            style={{ color: colors.text }}
+            className="text-sm font-bold tracking-tight"
+          >
+            {query ? `Search Results (${filteredPosts.length})` : "Discover Posts"}
+          </Text>
         </View>
       </View>
     ),
-    [query, followedIds, colors, isDark, filteredPosts.length]
+    [query, followedIds, colors, isDark, dynamicCreators, filteredPosts.length]
   );
 
   return (
@@ -249,7 +277,7 @@ export default function ExploreScreen() {
         </Text>
       </View>
 
-      {/* 📜 2. Feed List with Natural Scrollable Header, Pull-to-Refresh & Infinite Scroll */}
+      {/* 📜 Feed Posts List */}
       <FlatList
         data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
@@ -271,7 +299,7 @@ export default function ExploreScreen() {
         onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={isRefreshing}
+            refreshing={isRefetching}
             onRefresh={handleRefresh}
             tintColor={colors.brand}
             colors={[colors.brand]}
@@ -289,13 +317,13 @@ export default function ExploreScreen() {
                 style={{ color: colors.text3 }}
                 className="text-xs font-medium"
               >
-                You're all caught up
+                You've explored all posts
               </Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
-          !isLoading && !isRefreshing ? (
+          !isLoading ? (
             <View className="px-6 py-12 items-center">
               <View
                 style={{
@@ -322,31 +350,18 @@ export default function ExploreScreen() {
               >
                 {query
                   ? `No posts matching "${query}".`
-                  : "No posts available in this feed yet."}
+                  : "No posts yet. Head to Home to create one!"}
               </Text>
-              {query.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setQuery("")}
-                  style={{
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                  }}
-                  className="px-4 py-2 rounded-lg border"
-                >
-                  <Text
-                    style={{ color: colors.brand2 }}
-                    className="text-xs font-semibold"
-                  >
-                    Clear Search
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
-          ) : null
+          ) : (
+            <View className="py-12 items-center justify-center">
+              <ActivityIndicator size="large" color={colors.brand} />
+            </View>
+          )
         }
       />
 
-      {/* 💬 Comments Bottom Sheet Modal */}
+      {/* 💬 Comment Sheet Modal */}
       {commentPost && (
         <CommentSheet
           post={commentPost}

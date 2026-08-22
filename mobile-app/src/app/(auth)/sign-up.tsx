@@ -17,7 +17,7 @@ import { useAppTheme } from "@/context/ThemeContext";
 import { useToastStore } from "@/store/useToastStore";
 import { Gradients } from "@/constants/theme";
 import { Input } from "@/components/ui/input";
-import { appShadow } from "@/lib/utils";
+import { appShadow, extractErrorMessage } from "@/lib/utils";
 import {
   User,
   AtSign,
@@ -27,7 +27,7 @@ import {
 
 export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { register } = useAuth();
   const showToast = useToastStore((s) => s.showToast);
 
@@ -64,7 +64,8 @@ export default function SignUpScreen() {
       showToast(`Welcome, ${name}! 🎉`, "🎉");
       router.replace("/(protected)");
     } catch (e: any) {
-      setError(e?.message || "Registration failed. Please try again.");
+      const msg = extractErrorMessage(e, "Registration failed. Please try again.");
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -90,8 +91,8 @@ export default function SignUpScreen() {
           {/* Header & Logo */}
           <View className="items-center mb-6">
             <Image
-              source={require("@/assets/images/app-logo.png")}
-              style={{ width: 64, height: 64, borderRadius: 14 }}
+              source={require("@/assets/icons/appIcon.png")}
+              style={{ width: 100, height: 100, borderRadius: 14 }}
               className="mb-3 shadow-lg shadow-indigo-500/30"
               resizeMode="contain"
             />
@@ -105,8 +106,17 @@ export default function SignUpScreen() {
 
           {/* Error Message */}
           {error ? (
-            <View className="bg-pink/10 border border-pink/30 rounded-lg p-3.5 mb-4">
-              <Text className="text-sm font-semibold text-pink text-center">
+            <View
+              style={{
+                backgroundColor: isDark ? "rgba(244, 63, 94, 0.15)" : "#FFF1F2",
+                borderColor: colors.pink,
+              }}
+              className="border rounded-xl p-3.5 mb-4 flex-row items-center gap-2.5"
+            >
+              <Text
+                style={{ color: colors.pink }}
+                className="text-sm font-semibold flex-1 text-center"
+              >
                 {error}
               </Text>
             </View>

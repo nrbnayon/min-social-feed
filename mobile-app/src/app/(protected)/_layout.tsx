@@ -10,6 +10,9 @@ export default function ProtectedLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        sceneStyle: {
+          backgroundColor: isDark ? "#090A12" : "#F8FAFC",
+        },
         tabBarStyle: {
           backgroundColor: isDark ? "#090A12" : "#FFFFFF",
         },
@@ -18,7 +21,13 @@ export default function ProtectedLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Home" }} />
       <Tabs.Screen name="explore" options={{ title: "Explore" }} />
-      <Tabs.Screen name="create-post" options={{ title: "Create" }} />
+      <Tabs.Screen
+        name="create-post"
+        options={{
+          title: "Create",
+          tabBarStyle: { display: "none" },
+        }}
+      />
       <Tabs.Screen name="notifications" options={{ title: "Alerts" }} />
       <Tabs.Screen name="setting" options={{ title: "Settings" }} />
 

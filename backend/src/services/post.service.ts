@@ -92,7 +92,7 @@ export const toggleLike = async (
     const updated = await Post.findByIdAndUpdate(
       postId,
       { $inc: { likeCount: -1 } },
-      { new: true }
+      { returnDocument: "after" }
     ).select("likeCount");
     return { liked: false, likeCount: Math.max(0, updated?.likeCount ?? 0) };
   }
@@ -101,7 +101,7 @@ export const toggleLike = async (
   const updated = await Post.findByIdAndUpdate(
     postId,
     { $inc: { likeCount: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   ).select("likeCount");
 
   // Fire-and-forget push to the post author

@@ -10,7 +10,7 @@ import { router } from "expo-router";
 import type { Post } from "@/types";
 import { Avatar } from "@/components/Shared/Avatar";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { useLikeMutation } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { formatCount } from "@/lib/utils";
 import {
@@ -36,13 +36,13 @@ export function PostCard({
   onSharePress,
 }: PostCardProps) {
   const { colors, isDark } = useAppTheme();
-  const { toggleLike } = usePostsStore();
   const currentUser = useAuth((s) => s.user);
+  const currentUserId = currentUser?.id || "";
+  const likeMutation = useLikeMutation(currentUserId);
 
   const [isExpanded, setIsExpanded] = useState(false);
 
   const postId = post.id || post._id || "";
-  const currentUserId = currentUser?.id || "u0";
   const isLiked = (post.likes || []).includes(currentUserId);
   const likeCount = post.likes ? post.likes.length : (post.likeCount || 0);
   const commentCount = post.comments ? post.comments.length : (post.commentCount || 0);
@@ -55,12 +55,7 @@ export function PostCard({
   const isLongText = (post.content || "").length > 180;
 
   const handleLike = () => {
-    toggleLike(
-      postId,
-      currentUserId,
-      currentUser?.name || "User",
-      currentUser?.avatar
-    );
+    void likeMutation.mutate(postId);
   };
 
   const handleShare = () => {

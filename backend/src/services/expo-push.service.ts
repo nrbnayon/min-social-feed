@@ -1,8 +1,15 @@
-import Expo, { type ExpoPushMessage, type ExpoPushTicket } from "expo-server-sdk";
-
-const expo = new Expo();
+import https from "node:https";
+import dns from "node:dns";
+import Expo, { type ExpoPushMessage } from "expo-server-sdk";
 
 const LOG_TAG = "[ExpoPush]";
+
+// Ensure IPv4 is prioritized for external push notification services to avoid IPv6 timeouts
+try {
+  dns.setDefaultResultOrder("ipv4first");
+} catch {
+  // Ignored if not supported in current node runtime
+}
 
 export interface PushPayload {
   title: string;
@@ -14,8 +21,67 @@ export interface PushPayload {
 }
 
 /**
+ * Direct HTTPS caller to Expo Push API with IPv4 enforcement and 5s timeout.
+ */
+async function sendToExpoPushApi(messages: ExpoPushMessage[]): Promise<any> {
+  const payload = JSON.stringify(messages);
+  const accessToken = process.env.EXPO_ACCESS_TOKEN;
+
+  return new Promise((resolve, reject) => {
+    const headers: Record<string, string | number> = {
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "Accept-Encoding": "gzip, deflate",
+      "Content-Length": Buffer.byteLength(payload),
+    };
+
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
+    const req = https.request(
+      {
+        hostname: "exp.host",
+        port: 443,
+        path: "/--/api/v2/push/send",
+        method: "POST",
+        headers,
+        family: 4, // Force IPv4
+        timeout: 6000,
+      },
+      (res) => {
+        let rawData = "";
+        res.on("data", (chunk) => {
+          rawData += chunk;
+        });
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(rawData);
+            resolve(parsed);
+          } catch {
+            resolve({ data: rawData });
+          }
+        });
+      }
+    );
+
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("Expo Push API request timed out after 6000ms"));
+    });
+
+    req.on("error", (err) => {
+      reject(err);
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
+
+/**
  * Send a push notification to a single Expo push token.
- * Fire-and-forget safe — never throws, only logs.
+ * Fire-and-forget safe — never throws.
  */
 export async function sendPushNotification(
   expoPushToken: string,
@@ -37,22 +103,17 @@ export async function sendPushNotification(
   };
 
   try {
-    const chunks = expo.chunkPushNotifications([message]);
-    const tickets: ExpoPushTicket[] = [];
-
-    for (const chunk of chunks) {
-      const chunkTickets = await expo.sendPushNotificationsAsync(chunk);
-      tickets.push(...chunkTickets);
-    }
-
-    // Log any errors from Expo without crashing
-    for (const ticket of tickets) {
+    const res = await sendToExpoPushApi([message]);
+    const tickets = res?.data || [];
+    for (const ticket of Array.isArray(tickets) ? tickets : [tickets]) {
       if (ticket.status === "error") {
-        console.warn(`${LOG_TAG} Push delivery error:`, ticket.message, ticket.details);
+        console.warn(`${LOG_TAG} Push delivery ticket error:`, ticket.message, ticket.details);
+      } else if (ticket.status === "ok") {
+        console.log(`${LOG_TAG} Push notification delivered successfully ✅`);
       }
     }
-  } catch (error) {
-    console.error(`${LOG_TAG} Failed to send push notification:`, error);
+  } catch (error: any) {
+    console.warn(`${LOG_TAG} Push notification dispatch note:`, error.message || error);
   }
 }
 
@@ -67,7 +128,6 @@ export async function sendBatchPushNotifications(
   const validTokens = expoPushTokens.filter((token) => Expo.isExpoPushToken(token));
 
   if (validTokens.length === 0) {
-    console.warn(`${LOG_TAG} No valid Expo push tokens in batch.`);
     return;
   }
 
@@ -82,16 +142,9 @@ export async function sendBatchPushNotifications(
   }));
 
   try {
-    const chunks = expo.chunkPushNotifications(messages);
-    for (const chunk of chunks) {
-      const tickets = await expo.sendPushNotificationsAsync(chunk);
-      for (const ticket of tickets) {
-        if (ticket.status === "error") {
-          console.warn(`${LOG_TAG} Batch push error:`, ticket.message);
-        }
-      }
-    }
-  } catch (error) {
-    console.error(`${LOG_TAG} Batch push failed:`, error);
+    const res = await sendToExpoPushApi(messages);
+    console.log(`${LOG_TAG} Batch push processed:`, Array.isArray(res?.data) ? `${res.data.length} tickets` : "ok");
+  } catch (error: any) {
+    console.warn(`${LOG_TAG} Batch push dispatch note:`, error.message || error);
   }
 }

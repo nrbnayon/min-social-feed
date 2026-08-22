@@ -14,7 +14,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
-import { usePostsStore } from "@/hooks/usePosts";
+import { usePostsQuery, useLikeMutation, useCommentMutation } from "@/hooks/usePostsQuery";
 import { useAuth } from "@/store/auth.store";
 import { Avatar } from "@/components/Shared/Avatar";
 import { BackButton } from "@/components/ui/BackButton";
@@ -38,11 +38,15 @@ export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const { posts, addComment, toggleLike } = usePostsStore();
   const currentUser = useAuth((s) => s.user);
+  const currentUserId = currentUser?.id || "";
+
+  const { data: postsData } = usePostsQuery();
+  const posts = postsData?.items ?? [];
+  const likeMutation = useLikeMutation(currentUserId);
+  const commentMutation = useCommentMutation(currentUser);
 
   const [commentText, setCommentText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [sharePost, setSharePost] = useState<Post | null>(null);
 
   // Comments pagination state
@@ -51,7 +55,6 @@ export default function PostDetailScreen() {
 
   const post = posts.find((p) => (p.id || p._id) === id);
   const postId = post?.id || post?._id || "";
-  const currentUserId = currentUser?.id || "u0";
   const isLiked = post && (post.likes || []).includes(currentUserId);
   const likeCount = post?.likes ? post.likes.length : (post?.likeCount || 0);
   const commentCount = post?.comments ? post.comments.length : (post?.commentCount || 0);
@@ -62,12 +65,7 @@ export default function PostDetailScreen() {
 
   const handleLike = () => {
     if (!post) return;
-    toggleLike(
-      postId,
-      currentUserId,
-      currentUser?.name || "User",
-      currentUser?.avatar
-    );
+    void likeMutation.mutate(postId);
   };
 
   const handleShare = () => {
@@ -78,15 +76,14 @@ export default function PostDetailScreen() {
   };
 
   const handleSendComment = async () => {
-    if (!commentText.trim() || !id || isSubmitting) return;
-    setIsSubmitting(true);
+    if (!commentText.trim() || !id || commentMutation.isPending) return;
+    const text = commentText.trim();
+    setCommentText("");
     try {
-      await addComment(id, commentText.trim(), currentUser);
-      setCommentText("");
-      // Ensure newly added comment is visible
+      await commentMutation.mutateAsync({ postId: id, content: text });
       setVisibleCount((prev) => Math.max(prev, (post?.comments?.length || 0) + 1));
-    } finally {
-      setIsSubmitting(false);
+    } catch {
+      // Handled in mutation
     }
   };
 
@@ -525,10 +522,10 @@ export default function PostDetailScreen() {
 
           <TouchableOpacity
             onPress={handleSendComment}
-            disabled={!commentText.trim() || isSubmitting}
+            disabled={!commentText.trim() || commentMutation.isPending}
             activeOpacity={0.8}
             style={{
-              opacity: commentText.trim() && !isSubmitting ? 1 : 0.4,
+              opacity: commentText.trim() && !commentMutation.isPending ? 1 : 0.4,
               width: 32,
               height: 32,
               borderRadius: 16,
@@ -545,7 +542,7 @@ export default function PostDetailScreen() {
                 justifyContent: "center",
               }}
             >
-              {isSubmitting ? (
+              {commentMutation.isPending ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Send size={14} color="#FFFFFF" />

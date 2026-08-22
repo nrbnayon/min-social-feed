@@ -40,6 +40,7 @@ export const sendError = (
 ) => {
   return response.status(status).json({
     success: false,
+    message,
     error: {
       message,
       ...(details ? { details } : {}),
