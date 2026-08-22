@@ -1,6 +1,6 @@
 import { Document, model, Schema, Types } from "mongoose";
 
-export type NotificationType = "like" | "comment";
+export type NotificationType = "like" | "comment" | "follow";
 export type NotificationSubType = "comment" | "reply";
 
 export interface NotificationDocument extends Document {
@@ -8,7 +8,7 @@ export interface NotificationDocument extends Document {
   sender: Types.ObjectId;
   type: NotificationType;
   subType?: NotificationSubType;
-  post: Types.ObjectId;
+  post?: Types.ObjectId | null;
   read: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -29,7 +29,7 @@ const notificationSchema = new Schema<NotificationDocument>(
     },
     type: {
       type: String,
-      enum: ["like", "comment"],
+      enum: ["like", "comment", "follow"],
       required: true,
     },
     subType: {
@@ -40,7 +40,8 @@ const notificationSchema = new Schema<NotificationDocument>(
     post: {
       type: Schema.Types.ObjectId,
       ref: "Post",
-      required: true,
+      required: false,
+      default: null,
     },
     read: {
       type: Boolean,

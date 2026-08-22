@@ -6,105 +6,103 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-  Platform,
   ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsQuery } from "@/hooks/usePostsQuery";
+import {
+  useSuggestionsQuery,
+  useFollowingQuery,
+  useToggleFollowMutation,
+} from "@/hooks/useUsersQuery";
 import { useAuth } from "@/store/auth.store";
-import { useToastStore } from "@/store/useToastStore";
 import { PostCard } from "@/components/feed/PostCard";
 import { Avatar } from "@/components/Shared/Avatar";
 import { Input } from "@/components/ui/input";
 import { CommentSheet } from "@/components/comments/CommentSheet";
 import { ShareModal } from "@/components/feed/ShareModal";
-import { appShadow } from "@/lib/utils";
-import type { Post } from "@/types";
+import { Gradients } from "@/constants/theme";
+import type { Post, SuggestedUser } from "@/types";
 import {
   Search,
   Users,
   SearchX,
   BadgeCheck,
-  TrendingUp,
+  UserCheck,
+  UserPlus,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react-native";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 6;
 
 export default function ExploreScreen() {
   const insets = useSafeAreaInsets();
   const { colors, isDark } = useAppTheme();
-  const { data: postsData, isLoading, isRefetching, refetch } = usePostsQuery();
-  const posts = postsData?.items ?? [];
   const currentUser = useAuth((s) => s.user);
-  const showToast = useToastStore((s) => s.showToast);
 
-  const currentUserId = currentUser?.id;
-  const currentUsername = (currentUser?.username || "").toLowerCase().replace(/^@/, "");
+  // Queries & Mutations
+  const { data: postsData, isLoading: isPostsLoading, isRefetching: isPostsRefetching, refetch: refetchPosts } = usePostsQuery();
+  const { data: suggestions = [], isLoading: isSuggestionsLoading, refetch: refetchSuggestions } = useSuggestionsQuery(15);
+  const { data: followingUsers = [], isLoading: isFollowingLoading, refetch: refetchFollowing } = useFollowingQuery();
+  const toggleFollowMutation = useToggleFollowMutation();
+
+  const posts = postsData?.items ?? [];
 
   const [query, setQuery] = useState("");
-  const [followedIds, setFollowedIds] = useState<string[]>([]);
+  const [selectedCreatorId, setSelectedCreatorId] = useState<string | null>(null);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [sharePost, setSharePost] = useState<Post | null>(null);
 
-  // Pagination state (infinite scroll)
+  // Pagination state
   const [page, setPage] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Reset page whenever search query changes
   useEffect(() => {
     setPage(1);
-  }, [query]);
+  }, [query, selectedCreatorId]);
 
-  // Dynamically derive unique creators from real backend posts (excluding current user)
-  const dynamicCreators = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; username: string; avatar?: string; verified?: boolean }>();
-    posts.forEach((p) => {
-      const uId = p.userId || p.author?.id || p.username;
-      const uName = p.name || p.username || "User";
-      const uUsername = (p.username || p.author?.username || "user").replace(/^@/, "");
+  // Set of followed user IDs from the following list
+  const followingIdsSet = useMemo(() => {
+    return new Set(followingUsers.map((u) => u.id || u._id));
+  }, [followingUsers]);
 
-      // Do not suggest the logged in user to follow themselves
-      if (
-        uId &&
-        uId !== currentUserId &&
-        uUsername.toLowerCase() !== currentUsername &&
-        !map.has(uId)
-      ) {
-        map.set(uId, {
-          id: uId,
-          name: uName,
-          username: uUsername,
-          avatar: p.avatar || p.author?.avatarUrl,
-          verified: p.verified,
-        });
-      }
-    });
-    return Array.from(map.values()).slice(0, 10);
-  }, [posts, currentUserId, currentUsername]);
-
-  const toggleFollow = (userId: string, name: string) => {
-    if (followedIds.includes(userId)) {
-      setFollowedIds((prev) => prev.filter((id) => id !== userId));
-      showToast(`Unfollowed @${name}`, "👋");
-    } else {
-      setFollowedIds((prev) => [...prev, userId]);
-      showToast(`Followed @${name}`, "✨");
-    }
+  // Handle follow / unfollow toggle
+  const handleToggleFollow = (user: SuggestedUser) => {
+    const targetId = user.id || user._id;
+    if (!targetId) return;
+    toggleFollowMutation.mutate({ userId: targetId, name: user.name || user.username });
   };
 
+  // Filter posts based on search query or selected creator filter
   const filteredPosts = useMemo(() => {
-    if (!query.trim()) return posts;
-    const q = query.toLowerCase().trim().replace(/^@/, "");
-    return posts.filter((p) => {
-      const u = (p.username || p.author?.username || "").toLowerCase();
-      const n = (p.name || "").toLowerCase();
-      const c = (p.content || "").toLowerCase();
-      return u.includes(q) || n.includes(q) || c.includes(q);
-    });
-  }, [posts, query]);
+    let result = posts;
+
+    // Filter by selected creator if tapped in following bar
+    if (selectedCreatorId) {
+      result = result.filter((p) => {
+        const uId = p.userId || p.author?.id || p.username;
+        return uId === selectedCreatorId;
+      });
+    }
+
+    // Filter by text search query
+    if (query.trim()) {
+      const q = query.toLowerCase().trim().replace(/^@/, "");
+      result = result.filter((p) => {
+        const u = (p.username || p.author?.username || "").toLowerCase();
+        const n = (p.name || "").toLowerCase();
+        const c = (p.content || "").toLowerCase();
+        return u.includes(q) || n.includes(q) || c.includes(q);
+      });
+    }
+
+    return result;
+  }, [posts, query, selectedCreatorId]);
 
   const visiblePosts = useMemo(() => {
     return filteredPosts.slice(0, page * PAGE_SIZE);
@@ -114,27 +112,27 @@ export default function ExploreScreen() {
 
   const handleRefresh = async () => {
     setPage(1);
-    await refetch();
+    await Promise.all([refetchPosts(), refetchSuggestions(), refetchFollowing()]);
   };
 
   const handleLoadMore = () => {
-    if (isLoadingMore || !hasMore || isLoading) return;
+    if (isLoadingMore || !hasMore || isPostsLoading) return;
     setIsLoadingMore(true);
     setTimeout(() => {
       setPage((prev) => prev + 1);
       setIsLoadingMore(false);
-    }, 350);
+    }, 300);
   };
 
-  // Scrollable header: Search bar + Dynamic Suggested Creators
-  const listHeader = useMemo(
-    () => (
+  // ─── Header: Search + Follow Suggestions + Following Creators Bar ──────────
+  const listHeader = useMemo(() => {
+    return (
       <View className="pt-2">
-        {/* 1. Reusable Search Input */}
+        {/* 1. Search Bar */}
         <Input
           value={query}
           onChangeText={setQuery}
-          placeholder="Search creators, handles, or posts..."
+          placeholder="Search creators or posts..."
           leftIcon={<Search size={18} color={colors.text3} />}
           clearable
           onClear={() => setQuery("")}
@@ -142,92 +140,192 @@ export default function ExploreScreen() {
           containerClassName="px-4 mb-3"
         />
 
-        {/* 2. Suggested Creators Section (Only show if creators exist) */}
-        {dynamicCreators.length > 0 && (
+        {/* 2. Suggested Creators to Follow (Horizontal Cards Carousel) */}
+        {suggestions.length > 0 && (
           <View className="mb-4">
-            <View className="px-4 mb-2.5 flex-row items-center justify-between">
+            <View className="px-4 mb-3 flex-row items-center justify-between">
               <View className="flex-row items-center gap-1.5">
-                <Users size={16} color={colors.brand2} />
-                <Text
-                  style={{ color: colors.text }}
-                  className="text-sm font-bold tracking-tight"
-                >
-                  Active Creators
+                <Sparkles size={16} color={colors.brand} />
+                <Text style={{ color: colors.text }} className="text-sm font-black">
+                  Suggested for you
                 </Text>
               </View>
+              <Text style={{ color: colors.text3 }} className="text-xs font-semibold">
+                {suggestions.length} new
+              </Text>
             </View>
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{
-                paddingHorizontal: 16,
-                gap: 10,
-                paddingVertical: 6,
-              }}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
             >
-              {dynamicCreators.map((user) => {
-                const isFollowing = followedIds.includes(user.id);
-                return (
-                  <TouchableOpacity
-                    key={user.id}
-                    onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
-                    activeOpacity={0.85}
-                    style={{
-                      backgroundColor: colors.surface,
-                      borderColor: isDark ? "rgba(99, 102, 241, 0.22)" : colors.border,
-                      width: 148,
-                    }}
-                    className={`p-3.5 rounded-2xl border items-center ${appShadow}`}
-                  >
-                    <Avatar
-                      src={user.avatar}
-                      size={50}
-                      gradientBorder={true}
-                      name={user.name}
-                      onPress={() => router.push(`/(protected)/user/${user.id}` as any)}
-                    />
+              {suggestions.map((creator) => {
+                const cId = creator.id || creator._id;
+                const isFollowed = followingIdsSet.has(cId) || creator.isFollowing;
+                const isMutating =
+                  toggleFollowMutation.isPending &&
+                  toggleFollowMutation.variables?.userId === cId;
 
-                    <View className="flex-row items-center gap-1 mt-2 mb-0.5">
+                return (
+                  <View
+                    key={cId}
+                    style={[
+                      styles.suggestionCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: isDark ? "rgba(255, 255, 255, 0.08)" : colors.border,
+                      },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => router.push(`/(protected)/user/${cId}` as any)}
+                      className="items-center"
+                    >
+                      <Avatar
+                        src={creator.avatar || creator.avatarUrl}
+                        size={52}
+                        gradientBorder={true}
+                        name={creator.name || creator.username}
+                      />
+                      <View className="flex-row items-center gap-1 mt-2 mb-0.5">
+                        <Text
+                          style={{ color: colors.text }}
+                          className="text-xs font-bold text-center"
+                          numberOfLines={1}
+                        >
+                          {creator.name || creator.username}
+                        </Text>
+                        {creator.verified && (
+                          <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" />
+                        )}
+                      </View>
                       <Text
-                        style={{ color: colors.text }}
-                        className="text-xs font-bold text-center"
+                        style={{ color: colors.text3 }}
+                        className="text-[11px] font-medium mb-3"
                         numberOfLines={1}
                       >
-                        {user.name}
-                      </Text>
-                      {user.verified && (
-                        <BadgeCheck size={13} color="#FFFFFF" fill="#3B82F6" strokeWidth={2.5} />
-                      )}
-                    </View>
-
-                    <Text
-                      style={{ color: colors.text3 }}
-                      className="text-[11px] text-center mb-3"
-                      numberOfLines={1}
-                    >
-                      @{user.username}
-                    </Text>
-
-                    <TouchableOpacity
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        toggleFollow(user.id, user.username);
-                      }}
-                      activeOpacity={0.8}
-                      style={{
-                        backgroundColor: isFollowing ? colors.surface2 : colors.brand,
-                        borderColor: isFollowing ? colors.border : colors.brand,
-                      }}
-                      className="w-full py-1.5 rounded-full border items-center justify-center"
-                    >
-                      <Text
-                        style={{ color: isFollowing ? colors.text2 : "#FFFFFF" }}
-                        className="text-[11px] font-bold"
-                      >
-                        {isFollowing ? "Following" : "Follow"}
+                        @{creator.username}
                       </Text>
                     </TouchableOpacity>
+
+                    {/* Follow / Following Button */}
+                    <TouchableOpacity
+                      onPress={() => handleToggleFollow(creator)}
+                      disabled={isMutating}
+                      activeOpacity={0.8}
+                      className="w-full"
+                    >
+                      {isFollowed ? (
+                        <View
+                          style={{
+                            backgroundColor: isDark ? "rgba(255, 255, 255, 0.08)" : "#F1F5F9",
+                            borderColor: colors.border,
+                          }}
+                          className="py-1.5 px-3 rounded-full border items-center flex-row justify-center gap-1"
+                        >
+                          <UserCheck size={12} color={colors.text2} />
+                          <Text
+                            style={{ color: colors.text2 }}
+                            className="text-[11px] font-bold"
+                          >
+                            Following
+                          </Text>
+                        </View>
+                      ) : (
+                        <LinearGradient
+                          colors={Gradients.brand}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={{
+                            paddingVertical: 6,
+                            paddingHorizontal: 12,
+                            borderRadius: 20,
+                            alignItems: "center",
+                            flexDirection: "row",
+                            justifyContent: "center",
+                            gap: 4,
+                          }}
+                        >
+                          <UserPlus size={12} color="#FFFFFF" />
+                          <Text style={{ color: "#FFFFFF", fontSize: 11, fontWeight: "700" }}>
+                            Follow
+                          </Text>
+                        </LinearGradient>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* 3. Following Creators Row */}
+        {followingUsers.length > 0 && (
+          <View className="mb-4">
+            <View className="px-4 mb-2.5 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-1.5">
+                <Users size={16} color={colors.brand2} />
+                <Text style={{ color: colors.text }} className="text-sm font-black">
+                  Following ({followingUsers.length})
+                </Text>
+              </View>
+              {selectedCreatorId && (
+                <TouchableOpacity onPress={() => setSelectedCreatorId(null)}>
+                  <Text style={{ color: colors.brand }} className="text-xs font-bold">
+                    Show All
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
+            >
+              {followingUsers.map((user) => {
+                const uId = user.id || user._id;
+                const isSelected = selectedCreatorId === uId;
+
+                return (
+                  <TouchableOpacity
+                    key={uId}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      if (selectedCreatorId === uId) {
+                        setSelectedCreatorId(null);
+                      } else {
+                        setSelectedCreatorId(uId || null);
+                      }
+                    }}
+                    className="items-center"
+                    style={{ width: 62 }}
+                  >
+                    <View
+                      style={{
+                        padding: 2,
+                        borderRadius: 30,
+                        borderWidth: isSelected ? 2 : 1.5,
+                        borderColor: isSelected ? colors.brand : (isDark ? "rgba(255,255,255,0.15)" : colors.border),
+                      }}
+                    >
+                      <Avatar
+                        src={user.avatar || user.avatarUrl}
+                        size={46}
+                        gradientBorder={isSelected}
+                        name={user.name || user.username}
+                      />
+                    </View>
+                    <Text
+                      style={{ color: isSelected ? colors.brand : colors.text, fontWeight: isSelected ? "700" : "500" }}
+                      className="text-[11px] text-center mt-1.5"
+                      numberOfLines={1}
+                    >
+                      {user.name?.split(" ")[0] || user.username}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}
@@ -235,49 +333,40 @@ export default function ExploreScreen() {
           </View>
         )}
 
-        {/* Trending Posts Section Title */}
-        <View className="px-4 mt-1 mb-2 flex-row items-center gap-1.5">
-          <TrendingUp size={16} color={colors.pink} />
-          <Text
-            style={{ color: colors.text }}
-            className="text-sm font-bold tracking-tight"
-          >
-            {query ? `Search Results (${filteredPosts.length})` : "Discover Posts"}
+        {/* 4. Posts Feed Title Header */}
+        <View
+          style={{
+            borderBottomColor: isDark ? "rgba(255, 255, 255, 0.08)" : colors.border,
+            borderBottomWidth: 1,
+            backgroundColor: colors.surface2,
+          }}
+          className="px-4 py-2.5 flex-row items-center justify-between"
+        >
+          <Text style={{ color: colors.text2 }} className="text-xs font-bold uppercase tracking-wider">
+            {selectedCreatorId ? "Filtered Posts" : "Community Feed"}
+          </Text>
+          <Text style={{ color: colors.text3 }} className="text-xs font-medium">
+            {filteredPosts.length} posts
           </Text>
         </View>
       </View>
-    ),
-    [query, followedIds, colors, isDark, dynamicCreators, filteredPosts.length]
-  );
+    );
+  }, [
+    query,
+    suggestions,
+    followingUsers,
+    followingIdsSet,
+    selectedCreatorId,
+    filteredPosts.length,
+    colors,
+    isDark,
+    toggleFollowMutation.isPending,
+    toggleFollowMutation.variables?.userId,
+  ]);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.background,
-      }}
-    >
-      {/* 🌟 1. Top Header */}
-      <View
-        style={{
-          paddingTop: insets.top + (Platform.OS === "ios" ? 6 : 10),
-          paddingBottom: 10,
-          paddingHorizontal: 16,
-          backgroundColor: isDark ? "rgba(9, 10, 18, 0.95)" : "rgba(248, 250, 252, 0.95)",
-          borderBottomColor: colors.border,
-          borderBottomWidth: 1,
-        }}
-        className="flex-row items-center justify-between"
-      >
-        <Text
-          style={{ color: colors.text }}
-          className="text-xl font-black tracking-tight"
-        >
-          Explore
-        </Text>
-      </View>
-
-      {/* 📜 Feed Posts List */}
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* 📜 Seamless Stream Posts List */}
       <FlatList
         data={visiblePosts}
         keyExtractor={(item) => item.id || item._id || String(Math.random())}
@@ -299,7 +388,7 @@ export default function ExploreScreen() {
         onEndReachedThreshold={0.4}
         refreshControl={
           <RefreshControl
-            refreshing={isRefetching}
+            refreshing={isPostsRefetching || isSuggestionsLoading || isFollowingLoading}
             onRefresh={handleRefresh}
             tintColor={colors.brand}
             colors={[colors.brand]}
@@ -313,17 +402,14 @@ export default function ExploreScreen() {
           ) : !hasMore && visiblePosts.length > 0 ? (
             <View className="py-6 items-center flex-row justify-center gap-1.5 opacity-60">
               <CheckCircle2 size={14} color={colors.text3} />
-              <Text
-                style={{ color: colors.text3 }}
-                className="text-xs font-medium"
-              >
-                You've explored all posts
+              <Text style={{ color: colors.text3 }} className="text-xs font-medium">
+                You've seen all posts
               </Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
-          !isLoading ? (
+          !isPostsLoading ? (
             <View className="px-6 py-12 items-center">
               <View
                 style={{
@@ -350,26 +436,42 @@ export default function ExploreScreen() {
               >
                 {query
                   ? `No posts matching "${query}".`
-                  : "No posts yet. Head to Home to create one!"}
+                  : "Follow more creators above to see their latest posts!"}
               </Text>
+              {(query.length > 0 || selectedCreatorId) && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setQuery("");
+                    setSelectedCreatorId(null);
+                  }}
+                  style={{
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                  }}
+                  className="px-4 py-2 rounded-lg border"
+                >
+                  <Text
+                    style={{ color: colors.brand2 }}
+                    className="text-xs font-semibold"
+                  >
+                    Reset Filter
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-          ) : (
-            <View className="py-12 items-center justify-center">
-              <ActivityIndicator size="large" color={colors.brand} />
-            </View>
-          )
+          ) : null
         }
       />
 
-      {/* 💬 Comment Sheet Modal */}
+      {/* 💬 Comment Bottom Sheet */}
       {commentPost && (
         <CommentSheet
-          post={posts.find((p) => (p.id || p._id) === (commentPost.id || commentPost._id)) || commentPost}
+          post={commentPost}
           onClose={() => setCommentPost(null)}
         />
       )}
 
-      {/* 🔗 Share Sheet Modal */}
+      {/* 🔗 Share Modal */}
       {sharePost && (
         <ShareModal
           post={sharePost}
@@ -379,3 +481,13 @@ export default function ExploreScreen() {
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  suggestionCard: {
+    width: 130,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 12,
+    alignItems: "center",
+  },
+});

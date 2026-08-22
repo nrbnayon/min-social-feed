@@ -17,7 +17,7 @@ import type { NotificationDocument, NotificationType } from "../models/Notificat
  *
  * @param recipientId - User who receives the notification
  * @param senderId    - User who performed the action (like / comment / reply)
- * @param type        - 'like' | 'comment'
+ * @param type        - 'like' | 'comment' | 'follow'
  * @param postId      - The post that was interacted with
  * @param context     - Optional extra metadata (e.g. subType: 'reply', commentSnippet)
  */
@@ -25,13 +25,13 @@ export const createAndSendNotification = async (
   recipientId: string,
   senderId: string,
   type: NotificationType,
-  postId: string,
+  postId?: string | null,
   context?: { subType?: "comment" | "reply"; commentSnippet?: string }
 ): Promise<void> => {
   try {
     const rId = String(recipientId);
     const sId = String(senderId);
-    const pId = String(postId);
+    const pId = postId ? String(postId) : null;
 
     // Never notify yourself
     if (!rId || !sId || rId === sId) {
@@ -43,7 +43,7 @@ export const createAndSendNotification = async (
     const [sender, recipient, post] = await Promise.all([
       User.findById(sId).select("username name avatar"),
       User.findById(rId).select("expoPushToken"),
-      Post.findById(pId).select("content"),
+      pId ? Post.findById(pId).select("content") : Promise.resolve(null),
     ]);
 
     if (!sender || !recipient) {
@@ -57,13 +57,13 @@ export const createAndSendNotification = async (
       sender: sId,
       type,
       subType: context?.subType ?? "comment",
-      post: pId,
+      post: pId || null,
       read: false,
     });
 
     await savedNotification.populate([
       { path: "sender", select: "id username name avatar avatarUrl" },
-      { path: "post", select: "id content images" },
+      ...(pId ? [{ path: "post", select: "id content images" }] : []),
     ]);
 
     // Emit real-time notification to the recipient's room
@@ -75,7 +75,9 @@ export const createAndSendNotification = async (
     // Build human-readable push payload
     const senderHandle = `@${sender.username}`;
     const title =
-      type === "like"
+      type === "follow"
+        ? `${senderHandle} started following you`
+        : type === "like"
         ? `${senderHandle} liked your post`
         : isReply
         ? `${senderHandle} replied to your comment`
@@ -88,7 +90,9 @@ export const createAndSendNotification = async (
       : "";
 
     const body =
-      type === "like"
+      type === "follow"
+        ? "Check out their profile on MiniSocial ✨"
+        : type === "like"
         ? snippet || "Your post is getting attention! ❤️"
         : isReply
         ? snippet || "Someone replied to your comment 💬"
@@ -103,7 +107,7 @@ export const createAndSendNotification = async (
         data: {
           type,
           subType: context?.subType ?? "comment",
-          postId: pId,
+          postId: pId || undefined,
           senderId: sId,
           senderUsername: sender.username,
         },

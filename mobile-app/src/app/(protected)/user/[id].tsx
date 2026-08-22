@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import type { User, Post } from "@/types";
 import { useAppTheme } from "@/context/ThemeContext";
 import { usePostsQuery } from "@/hooks/usePostsQuery";
+import { useFollowingQuery, useToggleFollowMutation } from "@/hooks/useUsersQuery";
 import { useAuth } from "@/store/auth.store";
 import { useToastStore } from "@/store/useToastStore";
 import { PostCard } from "@/components/feed/PostCard";
@@ -42,10 +43,11 @@ export default function UserProfileScreen() {
   const { colors, isDark } = useAppTheme();
   const currentUser = useAuth((s) => s.user);
   const { data: postsData } = usePostsQuery();
+  const { data: followingUsers = [] } = useFollowingQuery();
+  const toggleFollowMutation = useToggleFollowMutation();
   const posts = postsData?.items ?? [];
   const showToast = useToastStore((s) => s.showToast);
 
-  const [isFollowing, setIsFollowing] = useState(false);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [sharePost, setSharePost] = useState<Post | null>(null);
 
@@ -105,14 +107,16 @@ export default function UserProfileScreen() {
 
   const isSelf = currentUser && targetUser && (currentUser.id === targetUser.id || currentUser.username === targetUser.username);
 
+  const isFollowing = useMemo(() => {
+    if (!targetUser) return false;
+    const tId = targetUser.id;
+    return followingUsers.some((u) => (u.id || u._id) === tId);
+  }, [targetUser, followingUsers]);
+
   const handleFollowToggle = () => {
     if (!targetUser) return;
-    const next = !isFollowing;
-    setIsFollowing(next);
-    showToast(
-      next ? `Following ${targetUser.name} 🎉` : `Unfollowed ${targetUser.name}`,
-      next ? "✓" : "👋"
-    );
+    const tId = targetUser.id;
+    toggleFollowMutation.mutate({ userId: tId, name: targetUser.name });
   };
 
   const handleShareProfile = () => {

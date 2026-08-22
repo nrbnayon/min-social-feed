@@ -15,6 +15,20 @@ export type User = {
   joinedDate: string;
 };
 
+export type SuggestedUser = {
+  id: string;
+  _id?: string;
+  name: string;
+  username: string;
+  avatar: string;
+  avatarUrl?: string;
+  bio?: string;
+  verified?: boolean;
+  followersCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
+};
+
 export type Comment = {
   id: string;
   _id?: string;
